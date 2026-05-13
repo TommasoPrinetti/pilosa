@@ -1,0 +1,31 @@
+# OS junk
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Archive temp
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+
+# Python (for report generation scripts)
+__pycache__/
+*.pyc
+*.pyo
+
+# OS-generated metadata files
+*.localized
