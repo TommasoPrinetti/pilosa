@@ -115,8 +115,8 @@ arrow_select() {
   if ! stty raw -echo 2>/dev/null; then
     printf '\n  %s arrow-key mode failed, falling back to numbered menu\n' "${Y}⚠${RESET}" >&2
     # Clear the partial menu we already printed
-    printf '\033[%dA' "$count" >&2
-    for _ in "${!options[@]}"; do printf '\033[2K\n' >&2; done
+    printf '\033[%dF' "$count" >&2
+    for _ in "${!options[@]}"; do printf '\r\033[2K\n' >&2; done
     select_menu "$prompt" "${options[@]}"
     return
   fi
@@ -154,10 +154,10 @@ arrow_select() {
           '[B'|'OB') ((current++)); ((current >= count)) && current=0 ;;            # down
           *) continue ;;
         esac
-        # Redraw: move cursor up `count` lines, then rewrite each line
-        printf '\033[%dA' "$count" >&2
+        # Redraw: move to the first option column, then rewrite each line.
+        printf '\033[%dF' "$count" >&2
         for i in "${!options[@]}"; do
-          printf '\033[2K' >&2
+          printf '\r\033[2K' >&2
           if (( i == current )); then
             printf '  %s %s %s\n' "${C}" "▶" "${BOLD}${options[$i]}${RESET}" >&2
           else
