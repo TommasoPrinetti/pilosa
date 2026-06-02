@@ -26,6 +26,7 @@ Last reviewed: 2026-06-02.
 * [x] On startup: copy and process headers → `STARTUP.md` Step 2.4
 * [x] On startup: load glossary + dictionaries → `STARTUP.md` Step 2.3 (multilingual dictionary)
 * [x] On startup: collect name + CLI + Root Vault path → `.bin/onboard.sh` (description/URLs/policy gathered by the LLM during startup)
+* [x] Arrow-key picker in interactive TTY, numbered fallback in piped input → `.bin/onboard.sh` `arrow_select`
 * [x] Delete or archive `startup.md` after activation → [[.trash/]] directory for retired files
 * [x] Move initialization files into archive/generated folder → [[.trash/]] for retired files
 * [x] Install/setup required services automatically during onboarding → pure bash, zero deps

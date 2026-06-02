@@ -65,6 +65,85 @@ select_menu() {
   done
 }
 
+arrow_select() {
+  # Arrow-key menu with TTY detection.
+  # - In a TTY: up/down keys move the cursor, Enter selects, q cancels.
+  # - Outside a TTY (piped input, non-interactive shells): fall back to select_menu.
+  local prompt="$1"
+  shift
+  local options=("$@")
+
+  if [[ ! -t 0 ]] || [[ ! -t 1 ]]; then
+    select_menu "$prompt" "${options[@]}"
+    return
+  fi
+
+  if ! command -v stty >/dev/null 2>&1; then
+    select_menu "$prompt" "${options[@]}"
+    return
+  fi
+
+  local count=${#options[@]}
+  local current=0
+  local key seq
+  local old_stty
+  old_stty=$(stty -g 2>/dev/null) || { select_menu "$prompt" "${options[@]}"; return; }
+
+  # Render initial menu
+  printf '\n  %s\n' "${BOLD}${prompt}${RESET}" >&2
+  printf '  %s\n' "${DIM}↑/↓ to move, Enter to confirm, q to cancel${RESET}" >&2
+  for i in "${!options[@]}"; do
+    if (( i == current )); then
+      printf '  %s %s %s\n' "${C}" "▶" "${BOLD}${options[$i]}${RESET}" >&2
+    else
+      printf '    %s\n' "${options[$i]}" >&2
+    fi
+  done
+
+  stty raw -echo 2>/dev/null
+
+  # Cleanup on any exit path
+  cleanup_arrow() {
+    stty "$old_stty" 2>/dev/null || true
+    printf '\033[?25h' >&2
+    trap - INT TERM EXIT
+  }
+  trap 'cleanup_arrow; printf "\n  Cancelled.\n" >&2; exit 1' INT TERM
+  trap 'cleanup_arrow' EXIT
+
+  while true; do
+    IFS= read -r -n 1 -s key 2>/dev/null || { cleanup_arrow; return 1; }
+    case "$key" in
+      $'\x1b')
+        IFS= read -r -n 2 -s -t 0.05 seq 2>/dev/null || true
+        case "$seq" in
+          '[A'|'OA') ((current--)); ((current < 0)) && current=$((count - 1)) ;; # up
+          '[B'|'OB') ((current++)); ((current >= count)) && current=0 ;;            # down
+          *) continue ;;
+        esac
+        # Redraw: move cursor up `count` lines, then rewrite each line
+        printf '\033[%dA' "$count" >&2
+        for i in "${!options[@]}"; do
+          printf '\033[2K' >&2
+          if (( i == current )); then
+            printf '  %s %s %s\n' "${C}" "▶" "${BOLD}${options[$i]}${RESET}" >&2
+          else
+            printf '    %s\n' "${options[$i]}" >&2
+          fi
+        done
+        ;;
+      ''|$'\n'|$'\r') break ;; # Enter
+      'q'|'Q') cleanup_arrow; printf '\n  %s\n' "${DIM}Cancelled.${RESET}" >&2; return 1 ;;
+    esac
+  done
+
+  cleanup_arrow
+
+  # Print final selection visibly
+  printf '  %s %s %s\n' "${G}" "✓" "${options[$current]}" >&2
+  echo "${options[$current]}"
+}
+
 confirm() {
   local prompt="$1" default="${2:-y}"
   local hint="Y/n"
@@ -158,6 +237,7 @@ loader_pid=""
 loader_start() {
   local msg="$1"
   local frames=("⠁" "⠈" "⠐" "⠠" "⢀" "⡀" "⠄" "⠐")
+  printf '\033[?25l' >&2
   (
     while true; do
       for f in "${frames[@]}"; do
@@ -170,10 +250,12 @@ loader_start() {
 }
 
 loader_stop() {
-  [[ -n "$loader_pid" ]] && kill "$loader_pid" 2>/dev/null
-  wait "$loader_pid" 2>/dev/null || true
-  loader_pid=""
-  printf "\r\033[2K" >&2
+  if [[ -n "$loader_pid" ]]; then
+    kill "$loader_pid" 2>/dev/null || true
+    wait "$loader_pid" 2>/dev/null || true
+    loader_pid=""
+  fi
+  printf "\r\033[2K\033[?25h" >&2
 }
 
 # ── transpose root vault text files into markdown raw copies ────────────────
@@ -253,6 +335,18 @@ has_filled_setup() {
 
 # ── main ─────────────────────────────────────────────────────────────────────
 main() {
+  # Top-level cleanup: kill any running spinner, restore terminal, show cursor.
+  cleanup_main() {
+    if [[ -n "${loader_pid:-}" ]]; then
+      kill "$loader_pid" 2>/dev/null || true
+      wait "$loader_pid" 2>/dev/null || true
+      loader_pid=""
+    fi
+    printf '\033[?25h' >&2
+  }
+  trap 'cleanup_main; printf "\n  Onboarding interrupted. Nothing was written.\n" >&2; exit 1' INT TERM
+  trap 'cleanup_main' EXIT
+
   # parse flags
   for arg in "$@"; do
     case "$arg" in
@@ -300,7 +394,7 @@ main() {
   done
 
   # ── Question 2: CLI preference ───────────────────────────────────────────
-  preferred_cli="$(select_menu "Preferred LLM CLI" "Claude Code" "Codex" "OpenCode" "Kilo" "Other")"
+  preferred_cli="$(arrow_select "Preferred LLM CLI" "Claude Code" "Codex" "OpenCode" "Kilo" "Other")" || preferred_cli="Claude Code"
 
   # ── Question 3: Root Vault path ──────────────────────────────────────────
   root_vault_path=""
