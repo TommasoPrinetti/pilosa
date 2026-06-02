@@ -2,7 +2,7 @@
 type: research_blueprint
 agent: onboarding_cli
 created: 2026-05-26
-updated: 2026-05-26
+updated: 2026-06-02
 setup_status: cli_started
 connects_to:
   - AGENTS.md
@@ -14,10 +14,10 @@ connects_to:
 
 ## Project
 - Title: [project name]
-- Description: [project description]
+- Description: not provided during framework setup; infer from the raw corpus during startup if absent
 
 ## Project Artifacts
-- [artifact URLs or file paths, if any]
+- none provided during framework setup
 
 ## Sources
 - Root Vault path: [path]

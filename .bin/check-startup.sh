@@ -27,10 +27,10 @@ read_file() {
 required_files=(
   "AGENTS.md"
   "00_system/instructions/ZONE_CONFIGURATION.md"
-  "00_system/instructions/ONBOARDING.md"
+  "00_system/instructions/STARTUP.md"
   "00_system/templates/STARTUP_REPORT_TEMPLATE.md"
   "02_user_zone/RESEARCH_BLUEPRINT.md"
-  "03_logs/research_tendencies/RESEARCH_NEED_AGGREGATOR.md"
+  "03_logs/research_tendencies/RESEARCH_NEED_AGGREGATOR_TEMPLATE.md"
 )
 
 for file in "${required_files[@]}"; do
@@ -43,7 +43,7 @@ startup_text="${config}
 ${blueprint}"
 
 # ── check for leftover placeholders ─────────────────────────────────────────
-for marker in "[path]" "[project name]" "[project description]"; do
+for marker in "[path]" "[project name]"; do
   if [[ "$startup_text" == *"$marker"* ]]; then
     failures+=("Required placeholder remains: $marker")
   fi
@@ -58,9 +58,9 @@ if [[ "$startup_text" != *"setup_status: zone_started"* ]]; then
   warnings+=("setup_status: zone_started was not found.")
 fi
 
-# ── check for fast-setup markers ────────────────────────────────────────────
+# ── check for stale fast-setup markers ──────────────────────────────────────
 if echo "$startup_text" | grep -qE "To be discovered|Not specified during fast setup"; then
-  warnings+=("Some fast-setup markers remain in blueprint/config.")
+  warnings+=("Legacy fast-setup markers remain in blueprint/config.")
 fi
 
 # ── check root vault path ───────────────────────────────────────────────────

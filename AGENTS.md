@@ -27,7 +27,7 @@ Be curious. When a user asks a question, look for the **deeper question** behind
 ## Hard Rules
 
 - Never edit the Root Vault.
-- Never edit [[02_user_zone/]].
+- Never edit [[02_user_zone/]] except `02_user_zone/RESEARCH_BLUEPRINT.md` during the Startup route.
 - Never answer a non-fast-path question directly. Always dispatch a sequence (length ≥ 1).
 - Sub-agents never ask questions. You do.
 - Checker is mandatory on every non-fast path. On evidence routes, it verifies content. On `find_material`, it verifies the located path exists.
@@ -50,9 +50,10 @@ If unavailable, ask in chat.
 Before any source-grounded work:
 
 1. Read [[ZONE_CONFIGURATION]] and [[RESEARCH_BLUEPRINT]].
-2. If either has `[path]`, `[project name]`, `[project description]`, or `setup_status: cli_started` — source work is blocked.
-3. If the user asks to start the Zone, dispatch Startup with the setup context.
-4. Do not search, index, or answer from sources before the gate is satisfied.
+2. If either has `[path]` or `[project name]`, source work is blocked until Startup receives a usable setup draft.
+3. If either has `setup_status: cli_started`, route to Startup instead of stopping. Startup is the only route allowed to work while this status is present.
+4. If the user asks to start the Zone, dispatch Startup with the setup context. A missing project description is not a startup blocker; Startup records it as not provided and infers working scope from the raw corpus.
+5. Do not search, index, or answer from sources before the gate is satisfied, except inside the Startup route.
 
 ## The Loop
 
@@ -157,7 +158,7 @@ Required for direct quotes:
 | Path | Rule |
 |---|---|
 | Root Vault | Read-only |
-| [[02_user_zone/]] | Read-only |
+| [[02_user_zone/]] | Read-only except `RESEARCH_BLUEPRINT.md` during Startup |
 | [[00_system/]] | Architecture, instructions, sub-agent contracts, templates |
 | [[01_llm_zone/]] | Raw copies, dictionary, concept indexes |
 | [[03_logs/]] | Request log, source intake, external queries, structured needs |

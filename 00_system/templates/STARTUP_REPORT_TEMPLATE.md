@@ -36,6 +36,9 @@ Use this structure for the final response after `Read AGENTS.md and start the Zo
 ## Validation
 - [path checks, placeholder scans, raw copy coverage, dictionary size, grep/Checker smoke test, external policy decision]
 
+## Unresolved Items
+- [non-blocking ambiguities, missing metadata, unsupported files, or `none`]
+
 ## Next Steps
 Offer 3 to 5 concrete next actions. Prefer actions grounded in the mapped Root Vault:
 - answer a source-grounded research question using [specific raw copy],

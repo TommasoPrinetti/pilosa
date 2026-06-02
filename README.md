@@ -24,7 +24,7 @@ git push -u origin my-project-name
 
 ### 3. Run the onboard script
 
-The script collects your project name, preferred LLM CLI, and Root Vault path, transposes text-based files into markdown raw copies, writes a filled blueprint + config with placeholders, and prints a startup prompt to paste into your LLM CLI.
+The script collects your project name, preferred LLM CLI, and Root Vault path, transposes text-based files into markdown raw copies, writes a setup draft, and prints a startup prompt to paste into your LLM CLI. Optional context such as project description and artifact URLs can be inferred or added later.
 
 ```bash
 bash .bin/onboard.sh
@@ -48,7 +48,7 @@ On macOS you can also double-click `onboard.command`. On Windows, double-click `
 
 Open Claude Code, Codex, OpenCode, or whichever CLI you picked, point it at this folder, and paste the prompt. The LLM will:
 
-1. Ask one question at a time to fill the remaining fields (project description, helpful artifact URLs, external source policy).
+1. Use the fast setup draft, treating project description and artifact URLs as optional. If they were not provided, it records that and infers working scope from the raw corpus.
 2. Update `00_system/instructions/ZONE_CONFIGURATION.md` and `02_user_zone/RESEARCH_BLUEPRINT.md` from `setup_status: cli_started` → `zone_started`.
 3. Build the master dictionary, generate YAML headers for every raw copy, create folder `index.md` retrieval maps, build concept indexes, run the retrieval smoke test.
 4. Write a startup report to `05_agent_reports/`.

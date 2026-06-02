@@ -53,7 +53,7 @@ Read:
 4. [[RESEARCH_BLUEPRINT]]
 5. [[HEADER_TEMPLATE]]
 
-If the user already ran `bash .bin/onboard.sh`, treat its answers as the **setup draft** (project name, Root Vault path, preferred LLM CLI) and complete startup without repeating those questions. The remaining fields — project description, helpful artifact URLs, external source policy — are also gathered by the CLI agent, not the user, one question at a time, then written into [[RESEARCH_BLUEPRINT]] and [[ZONE_CONFIGURATION]].
+If the user already ran `bash .bin/onboard.sh`, treat its answers as the **setup draft** (project name, Root Vault path, preferred LLM CLI) and complete startup without repeating those questions. Project description and helpful artifact URLs are optional context. If absent, record them as `not provided during fast setup` and infer the working scope from the raw corpus during indexing. External source policy defaults to `no`; only ask the user if they explicitly provide artifact URLs that would need fetching or request external source access.
 
 ---
 
@@ -79,9 +79,10 @@ Create a short todo list with the CLI's todo/task tool if available. **Mandatory
 
 Treat CLI-generated answers as a **setup draft**, not as questions to repeat. Translate the draft into a usable research configuration:
 
-- preserve the project title and description,
-- register helpful artifact URLs or file paths,
-- infer a tentative source universe, vocabulary, methods, outputs, and indexing target from the description, artifacts, and Root Vault,
+- preserve the project title,
+- preserve the project description if provided; otherwise write `not provided during fast setup` and continue,
+- register helpful artifact URLs or file paths if provided; otherwise write `none provided during fast setup`,
+- infer a tentative source universe, vocabulary, methods, outputs, and indexing target from the description, artifacts, and Root Vault when available, and from the Root Vault/raw corpus alone when description/artifacts are absent,
 - keep inferred fields explicitly marked as inferred when useful.
 
 Use shell/file tools to confirm the Root Vault path exists and is treated as **read-only**.
@@ -90,9 +91,9 @@ If artifact URLs are present, use web/MCP/browser tools **only** when `external_
 
 ## 1.3 Fill Blueprint and Configuration
 
-- Fill [[RESEARCH_BLUEPRINT]] (project title, project description, helpful artifact URLs or file paths, Root Vault path, evidence standards, external source policy).
+- Fill [[RESEARCH_BLUEPRINT]] (project title, project description status, helpful artifact URLs or file paths status, Root Vault path, evidence standards, external source policy).
 - Fill [[ZONE_CONFIGURATION]] (`root_vault_path`, `root_vault_mode`, `source_policy`, `external_sources_allowed`, `preferred_llm_cli`, `claim_standard`, `l2_policy`).
-- Replace `setup_status: cli_started` with `setup_status: zone_started` in both files when translation is complete.
+- Keep `setup_status: cli_started` until indexing and the retrieval smoke test have passed. Replace it with `setup_status: zone_started` in both files only at the end of Phase 2.
 
 ## 1.4 Audit the Translation
 
@@ -112,10 +113,12 @@ If [[RESEARCH_NEED_AGGREGATOR]] does not exist, create it from its template.
 
 Do not ask follow-up questions before Phase 2 unless:
 
-- a required field is absent,
+- the project title, Root Vault path, or preferred LLM CLI is absent,
 - the Root Vault path cannot be located,
-- external URL access needs permission, or
+- external URL access needs permission because the user provided URLs and policy is not already `yes`, or
 - a risky assumption blocks immediate indexing.
+
+Missing project description and missing helpful artifact URLs do not block Phase 2. Treat them as absent context and use the corpus survey, dictionary, and folder indexes to derive the initial project description and artifact status.
 
 The user's `start the Zone` prompt is already permission to run initial indexing.
 
@@ -223,22 +226,22 @@ Rules:
 - Do not create `index.md` files in the Root Vault.
 - Do not treat generated `index.md` files as raw copies.
 
-## 2.6 Disambiguate With The User
+## 2.6 Record Ambiguities
 
-This is the moment to **ask questions**. You have now read every source file and built the dictionary. You know what's ambiguous. Use the `question` tool to resolve ambiguities before finalizing headers and concept indexes.
+After reading the source files and building the dictionary, record ambiguities without stopping startup. The first startup pass should produce a usable retrieval layer even when metadata is incomplete.
 
-Ask about:
+Record these cases in the dictionary, folder indexes, zone index, or startup report as `unresolved` / `needs_review`:
 
-1. **Name collisions** — If "Maria" appears in 3 sources, is it the same Maria? Ask the user to confirm which people are distinct and which are aliases.
-2. **Place ambiguity** — If "the village" appears without a name, ask the user which village. If "the coast" could mean multiple locations, disambiguate.
-3. **Unclear concepts** — If a domain term has no obvious definition in the sources, ask the user what it means.
-4. **Missing metadata** — If a source has no date, no author, or unclear context, ask the user to fill the gap.
-5. **Cross-language ambiguity** — If the same concept appears in multiple languages with slightly different meanings, ask which meaning is intended.
-6. **Source relationships** — If two sources seem to contradict each other, ask the user whether this is a real disagreement or a misunderstanding.
+1. **Name collisions** — If "Maria" appears in 3 sources and identity is unclear, keep distinct surface forms or mark the canonical entry `unresolved`.
+2. **Place ambiguity** — If "the village" or "the coast" is unclear, preserve the source phrase as a keyword and mark the place field `needs_review` or omit it.
+3. **Unclear concepts** — If a domain term has no obvious definition, include the term with a brief source-grounded note and mark the definition `needs_review`.
+4. **Missing metadata** — If a source has no date, author, or context, omit that header field or mark the file `needs_review` in the folder index.
+5. **Cross-language ambiguity** — If concepts in different languages may not fully align, list variants as aliases only when source context supports it; otherwise keep separate entries.
+6. **Source relationships** — If two sources seem to contradict each other, record the contrast as a gap rather than resolving it.
 
-**Do not guess. Do not assume.** The dictionary and headers are only as good as the disambiguation that feeds them. Ask concisely — group related questions together, keep each question short, and offer concrete options when possible.
+Only pause for orchestrator/user input when an ambiguity prevents a valid raw copy path, prevents writing a valid YAML header, or prevents the smoke test from running. Otherwise continue and list unresolved items in the startup report.
 
-If the user cannot answer (e.g., they don't know either), mark the term as `unresolved` in the dictionary and move on.
+Do not guess or over-merge. A conservative unresolved entry is better than a wrong canonical term.
 
 ## 2.7 Build Concept Indexes
 
@@ -274,6 +277,8 @@ Before reporting startup complete, run **one retrieval smoke test**:
 5. Verify the dictionary has a canonical entry for the matched term.
 
 Startup is complete **only if** grep leads to a readable raw copy with a valid header.
+
+After the smoke test passes, replace `setup_status: cli_started` with `setup_status: zone_started` in [[RESEARCH_BLUEPRINT]] and [[ZONE_CONFIGURATION]].
 
 ---
 

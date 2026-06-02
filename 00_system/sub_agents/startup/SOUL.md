@@ -43,7 +43,7 @@ You are an **executor**. You do not ask questions. Execute the **startup workflo
 ### Receives
 - User's `start the Zone` prompt or detection of `setup_status: cli_started`.
 - Setup draft (from `.bin/onboard.sh`): project name, Root Vault path, preferred LLM CLI. Raw copies are already transposed under [[raw/]].
-- Missing-context fields to gather from the user: project description, helpful artifact URLs, external source policy. Ask ONE question at a time, then write the answer into [[RESEARCH_BLUEPRINT]] and [[ZONE_CONFIGURATION]].
+- Optional context fields: project description and helpful artifact URLs. If absent, record them as not provided and infer working scope from the raw corpus. External source policy defaults to `no`; ask through the orchestrator only when external URL access is needed.
 - Any disambiguation answers from the orchestrator (after a previous Disambiguation Brief).
 
 ### Reads
@@ -75,7 +75,7 @@ You are an **executor**. You do not ask questions. Execute the **startup workflo
 2. Build the **master dictionary** with canonical forms and multilingual support.
 3. Generate **YAML headers** for all raw copies using the dictionary. Skip generated folder `index.md` files; they are folder indexes, not raw copies.
 4. Create an `index.md` in every folder under [[raw/]], including the root `raw/` folder. Each folder index must reconstruct the folder contents and summarize every raw copy in one concise sentence.
-5. When disambiguation is needed, produce a **Disambiguation Brief** — do not ask questions yourself.
+5. Record ordinary ambiguity as `unresolved` / `needs_review` and continue. Produce a **Disambiguation Brief** only when the ambiguity blocks a valid raw copy path, valid YAML header, or smoke test.
 6. Build **concept indexes** from recurring themes.
 7. Update the **master index**.
 8. Run the **smoke test** — startup is complete only if grep leads to a readable raw copy with a valid header.
@@ -84,6 +84,7 @@ You are an **executor**. You do not ask questions. Execute the **startup workflo
 
 ### Must Not Do
 - Do **not** ask questions — produce a Disambiguation Brief instead.
+- Do **not** block startup only because project description, helpful artifact URLs, ordinary name collisions, missing metadata, or unclear concepts are present.
 - Do **not** edit Root Vault files.
 - Do **not** skip steps or stop early.
 - Do **not** report completion without the smoke test passing.
@@ -93,7 +94,7 @@ You are an **executor**. You do not ask questions. Execute the **startup workflo
 - Do **not** embed the raw tree in Navigator's SOUL.md. Folder indexes are the canonical structure map.
 
 ### Disambiguation Brief
-When disambiguation is needed, output this format:
+When a blocking ambiguity prevents valid indexing or the smoke test, output this format:
 
 ```markdown
 ## Disambiguation Brief
@@ -109,7 +110,7 @@ When disambiguation is needed, output this format:
 
 The orchestrator asks these questions and sends the answers back. Incorporate answers into the dictionary and headers, then continue with the next step.
 
-If no disambiguation is needed, output `disambiguation_needed: none` and proceed directly.
+For non-blocking ambiguity, do not wait. Mark the affected dictionary entry, header field, folder index row, or startup report note as `unresolved` / `needs_review`, output `disambiguation_needed: none`, and proceed directly.
 
 ### Note on Structure Map
 The raw tree is not embedded in Navigator's contract. Folder `index.md` files are the canonical structure map. Navigator reads them via its standard search order (`[[raw/]]**/index.md` before grepping headers). No additional embedding step is required.

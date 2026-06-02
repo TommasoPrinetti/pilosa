@@ -618,10 +618,10 @@ connects_to:
 
 ## Project
 - Title: ${project_title:-[project name]}
-- Description: [project description — to be gathered by the LLM CLI during startup]
+- Description: not provided during fast setup; infer from the raw corpus during startup
 
 ## Project Artifacts
-- [helpful artifact URLs or file paths, if any — to be gathered by the LLM CLI]
+- none provided during fast setup
 
 ## Sources
 - Root Vault path: ${root_vault_path:-[path]}
@@ -639,7 +639,7 @@ connects_to:
 - Claims require source paths.
 - L2 clues require Checker verification before reporting.
 - External sources must stay labeled external unless moved into the Root Vault.
-- External source policy: no (LLM will confirm with the user during startup)
+- External source policy: no (default; ask only if external access is needed)
 
 ## Outputs
 - Start with folder mirror indexes and evidence-grounded answers unless the researcher requests another output.
@@ -697,7 +697,7 @@ preferred_llm_cli: "$preferred_cli"
 ## Notes
 - This file was initialized by the CLI fast setup.
 - The CLI collected: project name, Root Vault path, preferred LLM CLI. Raw copies are transposed into 01_llm_zone/raw/ under the same path.
-- The LLM CLI agent must gather the remaining fields during startup: project description, helpful artifact URLs, external source policy. Then update both this file and [[RESEARCH_BLUEPRINT]] accordingly.
+- During startup, project description and helpful artifact URLs are optional. If absent, the LLM CLI agent records them as not provided, keeps external_sources_allowed at its default `no`, and infers working scope from the raw corpus.
 - When setup_status reaches zone_started, the Startup sub-agent has built the master dictionary, generated YAML headers, created folder index.md files, and built concept indexes.
 - This file never grants permission to edit the Root Vault.
 CONFIG_EOF
@@ -744,10 +744,10 @@ The setup draft already contains:
 - Root Vault path: ${root_vault_path} (already validated, files transposed into 01_llm_zone/raw/)
 - Preferred LLM CLI: ${preferred_cli}
 
-Still missing (ask the user, ONE question at a time, then update both files):
-- Project description
-- Helpful artifact URLs or file paths (optional)
-- External source policy (default is no — confirm or change)
+Optional context not collected by fast setup:
+- Project description (if absent, infer from the raw corpus)
+- Helpful artifact URLs or file paths (if absent, record none provided)
+- External source policy defaults to no; ask only if external URL access is needed or the user requests external sources.
 
 Then execute 00_system/instructions/STARTUP.md from Phase 1.2 onwards. Specifically:
 - Translate the setup draft into filled blueprint + config
