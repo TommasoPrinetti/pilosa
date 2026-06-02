@@ -11,7 +11,7 @@ Last reviewed: 2026-06-02.
 * [x] Create a glossary + dictionaries system → `GLOSSARY.md`, [[dictionary]]
 * [x] Detect languages automatically → dictionary records language per term, raw copy headers include `language` field
 * [x] Structure project-specific files and contexts → full directory tree
-* [x] Build an internal copy/index of the root vault → `bin/onboard.sh` transposes raw copies, `STARTUP.md` indexes
+* [x] Build an internal copy/index of the root vault → `.bin/onboard.sh` transposes raw copies, `STARTUP.md` indexes
 * [x] Index YAML instructions/configurations → YAML headers are the core retrieval mechanism
 * [x] Copy only `.md` files into the indexed environment → `onboard.sh` transposes accepted text formats into markdown raw copies
 * [x] Preserve/connect headers and links during indexing → `[[wikilinks]]` in headers, `OBSIDIAN_CONSTRAINTS.md` defines rules
@@ -25,7 +25,7 @@ Last reviewed: 2026-06-02.
 * [x] Define startup bootstrap sequence → `STARTUP.md` (Phase 1 setup translation + Phase 2 indexing)
 * [x] On startup: copy and process headers → `STARTUP.md` Step 2.4
 * [x] On startup: load glossary + dictionaries → `STARTUP.md` Step 2.3 (multilingual dictionary)
-* [x] On startup: generate onboarding questions → `bin/onboard.sh`
+* [x] On startup: generate onboarding questions → `.bin/onboard.sh`
 * [x] Delete or archive `startup.md` after activation → [[.trash/]] directory for retired files
 * [x] Move initialization files into archive/generated folder → [[.trash/]] for retired files
 * [x] Install/setup required services automatically during onboarding → pure bash, zero deps
@@ -84,7 +84,7 @@ Last reviewed: 2026-06-02.
 
 ### User Interaction
 
-* [x] Build onboarding question flows → `bin/onboard.sh`
+* [x] Build onboarding question flows → `.bin/onboard.sh`
 * [x] Prepare dynamic contextual question series → `STARTUP.md` Step 2.6 disambiguation
 * [x] Make questioning adaptive to user/project state → `STARTUP.md` Phase 1 question gating
 * [ ] Create different "attitudes"/interaction modes for orchestration
@@ -101,7 +101,7 @@ Last reviewed: 2026-06-02.
 ### Internal Vault Strategy
 
 * [x] Create an internal mirrored vault → [[raw/]]
-* [x] Synchronize root vault into internal indexed structure → initial copy via `bin/onboard.sh`; not continuous sync
+* [x] Synchronize root vault into internal indexed structure → initial copy via `.bin/onboard.sh`; not continuous sync
 * [x] Folder indexes replace embedded vault tree in Navigator's contract → single source of truth for structure map
 * [ ] Explore scalable indexing architecture
 
@@ -109,7 +109,7 @@ Last reviewed: 2026-06-02.
 
 * [x] Package dependencies locally in vault → pure bash, zero deps
 * [x] Reduce reliance on globally installed packages → zero external packages
-* [x] Design standalone environment setup → `bin/onboard.sh` + `bin/check-startup.sh`
+* [x] Design standalone environment setup → `.bin/onboard.sh` + `.bin/check-startup.sh`
 
 ### Cleanup and Archival
 
@@ -124,7 +124,7 @@ Last reviewed: 2026-06-02.
 * [x] Define workflows formally → `AGENTS.md`
 * [x] Document startup lifecycle → `STARTUP.md`
 * [x] Document agent orchestration architecture → `SYSTEM_ARCHITECTURE_MAP.md`
-* [x] Document indexing + vault synchronization process → `STARTUP.md`, `bin/onboard.sh`
+* [x] Document indexing + vault synchronization process → `STARTUP.md`, `.bin/onboard.sh`
 * [x] AGENTS.md is the single routing file; routing logic no longer split across PROCESS_ROUTER + AGENTS
 
 ## 8. Open Questions / Research Directions

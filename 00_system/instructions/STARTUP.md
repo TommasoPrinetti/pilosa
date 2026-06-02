@@ -53,7 +53,7 @@ Read:
 4. [[RESEARCH_BLUEPRINT]]
 5. [[HEADER_TEMPLATE]]
 
-If the user already ran `bash bin/onboard.sh`, treat its answers as the **setup draft** and complete startup without repeating questions unless a required field is missing or a risky assumption blocks indexing.
+If the user already ran `bash .bin/onboard.sh`, treat its answers as the **setup draft** and complete startup without repeating questions unless a required field is missing or a risky assumption blocks indexing.
 
 ---
 

@@ -42,7 +42,7 @@ You are an **executor**. You do not ask questions. Execute the **startup workflo
 
 ### Receives
 - User's `start the Zone` prompt or detection of `setup_status: cli_started`.
-- Setup draft (from `bin/onboard.sh` or user answers).
+- Setup draft (from `.bin/onboard.sh` or user answers).
 - Root Vault path.
 - Any disambiguation answers from the orchestrator (after a previous Disambiguation Brief).
 
