@@ -16,6 +16,7 @@ Short routing log for user prompts. Log the request before deciding whether to a
 
 | Date | Request summary | Route | Status | Output |
 |---|---|---|---|---|
+| 2026-06-02 | Add onboarding transposition count and Unicode progress bar | fast_path | done | Root Vault scan reports transposable file count; copy phase updates a Unicode processed-files bar |
 | 2026-06-02 | Fix onboarding arrow picker redraw corruption | fast_path | done | Redraw now returns to column 0 before clearing and rewriting option rows |
 | 2026-06-02 | Fix onboarding arrow-key CLI selection and align test/dev branches | fast_path | done | Arrow picker reads escape sequences reliably, q cancels onboarding, numbered fallback still works |
 | 2026-06-02 | Diagnose onboarding Root Vault path not found | fast_path | done | Path exists; onboarding now strips wrapping quotes |

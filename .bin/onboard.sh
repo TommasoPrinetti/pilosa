@@ -265,37 +265,34 @@ markdown_raw_rel_path() {
   fi
 }
 
-# ── ASCII loader ────────────────────────────────────────────────────────────
-loader_pid=""
+render_copy_progress() {
+  local processed="$1" total="$2" copied="$3" skipped="$4"
+  local width=28
+  local filled=0
+  local bar="" i
 
-loader_start() {
-  local msg="$1"
-  local frames=("⠁" "⠈" "⠐" "⠠" "⢀" "⡀" "⠄" "⠐")
-  printf '\033[?25l' >&2
-  (
-    while true; do
-      for f in "${frames[@]}"; do
-        printf "\r  %s %s" "$f" "$msg" >&2
-        sleep 0.1
-      done
-    done
-  ) &
-  loader_pid=$!
-}
-
-loader_stop() {
-  if [[ -n "$loader_pid" ]]; then
-    kill "$loader_pid" 2>/dev/null || true
-    wait "$loader_pid" 2>/dev/null || true
-    loader_pid=""
+  if [[ "$total" -gt 0 ]]; then
+    filled=$((processed * width / total))
   fi
-  printf "\r\033[2K\033[?25h" >&2
+
+  for ((i = 0; i < width; i++)); do
+    if (( i < filled )); then
+      bar+="█"
+    else
+      bar+="░"
+    fi
+  done
+
+  printf '\r\033[2K  %s[%s]%s %d/%d files processed (%d copied, %d skipped)' \
+    "${C}" "$bar" "${RESET}" "$processed" "$total" "$copied" "$skipped" >&2
 }
 
 # ── transpose root vault text files into markdown raw copies ────────────────
 copy_root_vault() {
   local vault_path="$1"
   local dest_dir="$2"
+
+  printf '\n  %sScanning Root Vault for text-based files that can become markdown raw copies...%s\n' "${DIM}" "${RESET}"
 
   local file_count=0
   while IFS= read -r -d '' f; do
@@ -309,12 +306,10 @@ copy_root_vault() {
     return 1
   fi
 
-  # Print a persistent status line FIRST, then run the spinner BELOW it.
-  # After the spinner stops, the status line remains visible alongside the success line.
-  printf '\n  %sTransposing %d text files into markdown raw copies...%s\n' "${DIM}" "$file_count" "${RESET}"
-  loader_start ""
+  printf '  %s→%s %d text-based files can be transposed to markdown raw copies\n' "${DIM}" "${RESET}" "$file_count"
+  render_copy_progress 0 "$file_count" 0 0
 
-  local copied=0 skipped=0
+  local copied=0 skipped=0 processed=0
 
   while IFS= read -r -d '' src_file; do
     should_skip_source_file "$src_file" && continue
@@ -331,14 +326,18 @@ copy_root_vault() {
 
     if [[ -f "$dest_file" ]]; then
       skipped=$((skipped + 1))
+      processed=$((processed + 1))
+      render_copy_progress "$processed" "$file_count" "$copied" "$skipped"
       continue
     fi
 
     cp "$src_file" "$dest_file"
     copied=$((copied + 1))
+    processed=$((processed + 1))
+    render_copy_progress "$processed" "$file_count" "$copied" "$skipped"
   done < <(find "$vault_path" -type f -print0 2>/dev/null)
 
-  loader_stop
+  printf '\n'
 
   local binary_count=0
   while IFS= read -r -d '' f; do
@@ -372,13 +371,8 @@ has_filled_setup() {
 
 # ── main ─────────────────────────────────────────────────────────────────────
 main() {
-  # Top-level cleanup: kill any running spinner, restore terminal, show cursor.
+  # Top-level cleanup: restore terminal cursor on interrupts.
   cleanup_main() {
-    if [[ -n "${loader_pid:-}" ]]; then
-      kill "$loader_pid" 2>/dev/null || true
-      wait "$loader_pid" 2>/dev/null || true
-      loader_pid=""
-    fi
     printf '\033[?25h' >&2
   }
   trap 'cleanup_main; printf "\n  Onboarding interrupted. Nothing was written.\n" >&2; exit 1' INT TERM
