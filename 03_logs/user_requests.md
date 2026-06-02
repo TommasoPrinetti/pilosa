@@ -16,6 +16,7 @@ Short routing log for user prompts. Log the request before deciding whether to a
 
 | Date | Request summary | Route | Status | Output |
 |---|---|---|---|---|
+| 2026-06-02 | Generate copyable/runnable CLI launch command with startup prompt embedded | fast_path | done | Onboarding now previews a terminal command and lets the user copy it or run Codex/OpenCode directly with the prompt loaded |
 | 2026-06-02 | Make onboarding clipboard confirmation accept Enter/Y/yes variants explicitly | fast_path | done | Confirmation prompts now use default on blank input, accept case-insensitive yes/no, and reprompt on unclear input |
 | 2026-06-02 | Shorten onboarding startup prompt display and add CLI launch instructions | fast_path | done | Startup prompt is previewed, clipboard copy is confirmed, and selected CLI launch commands are shown |
 | 2026-06-02 | Improve onboarding Root Vault visibility with scan summary, current-file progress, and completion box | fast_path | done | Onboarding now shows text/non-text/ignored counts, current file during copy, and a transposition summary box |

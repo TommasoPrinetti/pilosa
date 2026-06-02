@@ -58,13 +58,76 @@ shell_quote() {
   printf "'%s'" "$value"
 }
 
-cli_command_for() {
-  case "$1" in
-    "Claude Code") echo "claude" ;;
-    "Codex") echo "codex" ;;
-    "OpenCode") echo "opencode" ;;
-    "Kilo") echo "kilo" ;;
-    *) echo "<your-llm-cli>" ;;
+build_launch_command() {
+  local cli="$1" prompt="$2" root_cmd
+  root_cmd="$(shell_quote "$ROOT")"
+
+  case "$cli" in
+    "Codex")
+      printf 'codex -C %s "$(cat <<'\''PILOSA_STARTUP_PROMPT'\''\n' "$root_cmd"
+      printf '%s\n' "$prompt"
+      printf 'PILOSA_STARTUP_PROMPT\n)"\n'
+      ;;
+    "OpenCode")
+      printf 'opencode --prompt "$(cat <<'\''PILOSA_STARTUP_PROMPT'\''\n'
+      printf '%s\n' "$prompt"
+      printf 'PILOSA_STARTUP_PROMPT\n)" %s\n' "$root_cmd"
+      ;;
+    "Claude Code")
+      printf 'cd %s && claude "$(cat <<'\''PILOSA_STARTUP_PROMPT'\''\n' "$root_cmd"
+      printf '%s\n' "$prompt"
+      printf 'PILOSA_STARTUP_PROMPT\n)"\n'
+      ;;
+    "Kilo")
+      printf 'cd %s && kilo "$(cat <<'\''PILOSA_STARTUP_PROMPT'\''\n' "$root_cmd"
+      printf '%s\n' "$prompt"
+      printf 'PILOSA_STARTUP_PROMPT\n)"\n'
+      ;;
+    *)
+      printf 'cd %s && <your-llm-cli> "$(cat <<'\''PILOSA_STARTUP_PROMPT'\''\n' "$root_cmd"
+      printf '%s\n' "$prompt"
+      printf 'PILOSA_STARTUP_PROMPT\n)"\n'
+      ;;
+  esac
+}
+
+run_cli_with_prompt() {
+  local cli="$1" prompt="$2"
+  case "$cli" in
+    "Codex")
+      if ! command -v codex >/dev/null 2>&1; then
+        warn "codex was not found on PATH."
+        return 1
+      fi
+      exec codex -C "$ROOT" "$prompt"
+      ;;
+    "OpenCode")
+      if ! command -v opencode >/dev/null 2>&1; then
+        warn "opencode was not found on PATH."
+        return 1
+      fi
+      exec opencode --prompt "$prompt" "$ROOT"
+      ;;
+    "Claude Code")
+      if ! command -v claude >/dev/null 2>&1; then
+        warn "claude was not found on PATH."
+        return 1
+      fi
+      cd "$ROOT"
+      exec claude "$prompt"
+      ;;
+    "Kilo")
+      if ! command -v kilo >/dev/null 2>&1; then
+        warn "kilo was not found on PATH."
+        return 1
+      fi
+      cd "$ROOT"
+      exec kilo "$prompt"
+      ;;
+    *)
+      warn "Run-now is only available for known CLI choices."
+      return 1
+      ;;
   esac
 }
 
@@ -705,42 +768,33 @@ PROMPT_EOF
   startup_prompt_preview="$(prompt_preview <<< "$startup_prompt")"
   print_box "LLM Zone Startup Prompt Preview" <<< "$startup_prompt_preview"
 
-  local prompt_copied="no"
-  if confirm "  Copy the full startup prompt to your clipboard?" "y"; then
-    if copy_to_clipboard "$startup_prompt"; then
-      prompt_copied="yes"
-      ok "Startup prompt copied to your clipboard."
+  local launch_command launch_preview handoff_action
+  launch_command="$(build_launch_command "$preferred_cli" "$startup_prompt")"
+  launch_preview="$(prompt_preview <<< "$launch_command")"
+  print_box "Terminal Launch Command Preview" <<< "$launch_preview"
+
+  handoff_action="$(arrow_select "Handoff action" "Copy launch command" "Run launch command now")" || return 1
+
+  if [[ "$handoff_action" == "Run launch command now" ]]; then
+    ok "Starting ${preferred_cli} with the startup prompt loaded."
+    run_cli_with_prompt "$preferred_cli" "$startup_prompt" || {
+      warn "Could not run ${preferred_cli}. Copying the launch command instead."
+      if copy_to_clipboard "$launch_command"; then
+        ok "Launch command copied to your clipboard."
+      else
+        warn "No clipboard tool found. Copy the full command from the block below."
+        print_box "Terminal Launch Command — full text" <<< "$launch_command"
+      fi
+    }
+  else
+    if copy_to_clipboard "$launch_command"; then
+      ok "Launch command copied to your clipboard."
+      note "Paste it into a terminal to open ${preferred_cli} with the startup prompt loaded."
     else
-      warn "No clipboard tool found. Copy the full prompt from the block below."
-      print_box "LLM Zone Startup Prompt — full text" <<< "$startup_prompt"
+      warn "No clipboard tool found. Copy the full command from the block below."
+      print_box "Terminal Launch Command — full text" <<< "$launch_command"
     fi
-  else
-    warn "Startup prompt not copied."
   fi
-
-  local cli_cmd root_cmd next_steps
-  cli_cmd="$(cli_command_for "$preferred_cli")"
-  root_cmd="$(shell_quote "$ROOT")"
-  if [[ "$prompt_copied" == "yes" ]]; then
-    next_steps=$(cat <<NEXT_STEPS_EOF
-Open a new terminal, then run:
-cd $root_cmd
-$cli_cmd
-
-When the CLI opens, paste the copied startup prompt.
-NEXT_STEPS_EOF
-)
-  else
-    next_steps=$(cat <<NEXT_STEPS_EOF
-Open a new terminal, then run:
-cd $root_cmd
-$cli_cmd
-
-When the CLI opens, paste the startup prompt. If you did not copy it, rerun onboarding and answer yes at the clipboard step.
-NEXT_STEPS_EOF
-)
-  fi
-  print_box "Open Your LLM CLI" <<< "$next_steps"
   printf '\n'
   divider
   printf '\n'
