@@ -1,6 +1,15 @@
-# LLM Zone
+```txt
+██████╗ ██╗██╗      ██████╗ ███████╗ █████╗ 
+██╔══██╗██║██║     ██╔═══██╗██╔════╝██╔══██╗
+██████╔╝██║██║     ██║   ██║███████╗███████║
+██╔═══╝ ██║██║     ██║   ██║╚════██║██╔══██║
+██║     ██║███████╗╚██████╔╝███████║██║  ██║
+╚═╝     ╚═╝╚══════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝
+```                                         
 
-LLM Zone turns a protected folder of source material (the **Root Vault**) into a searchable, header-indexed, multi-agent-readable knowledge map. A thin orchestrator (`AGENTS.md`) routes every prompt through specialist sub-agents (Conceptualizer, Navigator, Packer, Checker, Cleaner, Startup). The **Startup** sub-agent is the one-shot path that translates the setup draft and indexes the vault. **Checker** is mandatory on every non-fast-path route. Sub-agents never ask questions — only the orchestrator does.
+# Pilosa
+
+Pilosa turns a protected folder of source material (the **Root Vault**) into a searchable, header-indexed, multi-agent-readable knowledge map. A thin orchestrator (`AGENTS.md`) routes every prompt through specialist sub-agents (Conceptualizer, Navigator, Packer, Checker, Cleaner, Startup). The **Startup** sub-agent is the one-shot path that translates the setup draft and indexes the vault. **Checker** is mandatory on every non-fast-path route. Sub-agents never ask questions — only the orchestrator does.
 
 ## Quick Start
 
