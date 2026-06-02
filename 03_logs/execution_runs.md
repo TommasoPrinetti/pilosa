@@ -5,10 +5,9 @@ purpose: [record routed runs that use retries, timeouts, checkpoints, or partial
 scope: [non-linear or failure-prone routed work]
 connects_to:
   - AGENTS.md
-  - 00_system/instructions/PROCESS_ROUTER.md
   - 05_agent_reports/
 created: 2026-05-27
-updated: 2026-05-27
+updated: 2026-06-02
 ---
 
 # Execution Runs

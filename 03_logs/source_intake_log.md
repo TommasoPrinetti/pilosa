@@ -5,8 +5,8 @@ role: source_registration_log
 purpose: [track new Root Vault batches and retained external sources before mapping]
 scope: [source intake only]
 connects_to:
-  - 01_llm_realm/00_realm_index.md
-  - 01_llm_realm/sources/
+  - 01_llm_zone/00_zone_index.md
+  - 01_llm_zone/raw/
   - 03_logs/external_queries.md
 created: 2026-05-26
 updated: 2026-05-28

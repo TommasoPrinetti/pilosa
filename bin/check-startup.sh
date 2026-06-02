@@ -26,10 +26,10 @@ read_file() {
 # ── read required files ─────────────────────────────────────────────────────
 required_files=(
   "AGENTS.md"
-  "00_system/instructions/REALM_CONFIGURATION.md"
+  "00_system/instructions/ZONE_CONFIGURATION.md"
   "00_system/instructions/ONBOARDING.md"
   "00_system/templates/STARTUP_REPORT_TEMPLATE.md"
-  "02_user_realm/RESEARCH_BLUEPRINT.md"
+  "02_user_zone/RESEARCH_BLUEPRINT.md"
   "03_logs/research_tendencies/RESEARCH_NEED_AGGREGATOR.md"
 )
 
@@ -37,8 +37,8 @@ for file in "${required_files[@]}"; do
   read_file "$file" > /dev/null
 done
 
-config="$(read_file "00_system/instructions/REALM_CONFIGURATION.md")"
-blueprint="$(read_file "02_user_realm/RESEARCH_BLUEPRINT.md")"
+config="$(read_file "00_system/instructions/ZONE_CONFIGURATION.md")"
+blueprint="$(read_file "02_user_zone/RESEARCH_BLUEPRINT.md")"
 startup_text="${config}
 ${blueprint}"
 
@@ -51,11 +51,11 @@ done
 
 # ── check setup_status ──────────────────────────────────────────────────────
 if [[ "$startup_text" == *"setup_status: cli_started"* ]]; then
-  failures+=("setup_status is still cli_started; run the Realm startup agent.")
+  failures+=("setup_status is still cli_started; run the Zone startup agent.")
 fi
 
-if [[ "$startup_text" != *"setup_status: realm_started"* ]]; then
-  warnings+=("setup_status: realm_started was not found.")
+if [[ "$startup_text" != *"setup_status: zone_started"* ]]; then
+  warnings+=("setup_status: zone_started was not found.")
 fi
 
 # ── check for fast-setup markers ────────────────────────────────────────────

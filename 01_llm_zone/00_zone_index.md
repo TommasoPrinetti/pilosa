@@ -1,8 +1,8 @@
 ---
-type: realm_index
-role: realm_master_index
-purpose: [map the whole LLM Realm and point to the main retrieval layers]
-scope: [all of 01_llm_realm]
+type: zone_index
+role: zone_master_index
+purpose: [map the whole LLM Zone and point to the main retrieval layers]
+scope: [all of 01_llm_zone]
 connects_to:
   - 00_dictionary.md
   - 01_metadata/HEADER_TEMPLATE.md
@@ -14,18 +14,17 @@ created: 2026-05-26
 updated: 2026-05-28
 ---
 
-# LLM Realm — Master Index
+# LLM Zone — Master Index
 
 ## Structure
 
 ```
-01_llm_realm/
-  00_realm_index.md              This file
+01_llm_zone/
+  00_zone_index.md              This file
   00_dictionary.md               Shared term vocabulary for coherent headers
-  sources/                       1:1 copies of text-based Root Vault files with YAML headers
+  raw/                           Markdown raw copies transposed from text-based Root Vault files (folder `index.md` retrieval map in each subfolder)
   01_metadata/                   Shared header guidance
   03_concept_indexes/            Thematic concept indexes
-  archive/                       Deprecated indexes and historical material
 ```
 
 ## Source Coverage
@@ -68,7 +67,7 @@ See `03_logs/source_intake_log.md` for new Root Vault batches and retained exter
 
 ## Vault Overview
 
-- Total source copies: 0
+- Total raw copies: 0
 - Total non-text files (pointer-only): 0
 - Dictionary status: not built
 - Mapping status: not started

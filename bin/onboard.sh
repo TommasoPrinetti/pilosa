@@ -14,13 +14,13 @@ ROOT="$(pwd)"
 TODAY="$(date +%Y-%m-%d)"
 FORCE="0"
 
-Blueprint="$ROOT/02_user_realm/RESEARCH_BLUEPRINT.md"
-Config="$ROOT/00_system/instructions/REALM_CONFIGURATION.md"
+Blueprint="$ROOT/02_user_zone/RESEARCH_BLUEPRINT.md"
+Config="$ROOT/00_system/instructions/ZONE_CONFIGURATION.md"
 Agents="$ROOT/AGENTS.md"
 Claude="$ROOT/CLAUDE.md"
 Aggregator="$ROOT/03_logs/research_tendencies/RESEARCH_NEED_AGGREGATOR.md"
 AggregatorTemplate="$ROOT/03_logs/research_tendencies/RESEARCH_NEED_AGGREGATOR_TEMPLATE.md"
-SourcesDir="$ROOT/01_llm_realm/sources"
+RawDir="$ROOT/01_llm_zone/raw"
 
 # text-based extensions to copy from Root Vault
 TEXT_EXTENSIONS="md|txt|rtf|csv|json|yaml|yml|toml|xml|html|css|js|ts|py|rb|sh|log|ini|cfg|conf|tex|bib|org|adoc|rst|wiki|mediawiki|asciidoc|textile|dokuwiki|pmwiki|tiddlywiki|opml|outliner|workflowy|dynalist|logseq|roam|obsidian"
@@ -148,6 +148,28 @@ is_text_source_file() {
   esac
 }
 
+markdown_raw_rel_path() {
+  local rel_path="$1"
+  local name dir stem ext
+  name="$(basename "$rel_path")"
+  dir="$(dirname "$rel_path")"
+
+  ext="${name##*.}"
+  ext="$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')"
+
+  if [[ "$ext" == "md" ]]; then
+    echo "$rel_path"
+    return
+  fi
+
+  stem="${name%.*}"
+  if [[ "$dir" == "." ]]; then
+    echo "${stem}__${ext}.md"
+  else
+    echo "${dir}/${stem}__${ext}.md"
+  fi
+}
+
 # ── ASCII loader ────────────────────────────────────────────────────────────
 loader_pid=""
 
@@ -172,7 +194,7 @@ loader_stop() {
   printf "\r\033[2K" >&2
 }
 
-# ── copy root vault text files ──────────────────────────────────────────────
+# ── transpose root vault text files into markdown raw copies ────────────────
 copy_root_vault() {
   local vault_path="$1"
   local dest_dir="$2"
@@ -191,7 +213,7 @@ copy_root_vault() {
     return 1
   fi
 
-  loader_start "Cloning $file_count text files from Root Vault..."
+  loader_start "Transposing $file_count text files into markdown raw copies..."
 
   local copied=0 skipped=0
 
@@ -199,9 +221,12 @@ copy_root_vault() {
     should_skip_source_file "$src_file" && continue
     is_text_source_file "$src_file" || continue
 
-    # compute relative path from vault
+    # Compute the Root Vault-relative path, then transpose every accepted
+    # text format into a .md raw copy inside the indexed environment.
     local rel_path="${src_file#"$vault_path"/}"
-    local dest_file="$dest_dir/$rel_path"
+    local raw_rel_path
+    raw_rel_path="$(markdown_raw_rel_path "$rel_path")"
+    local dest_file="$dest_dir/$raw_rel_path"
     local dest_parent
     dest_parent="$(dirname "$dest_file")"
 
@@ -226,10 +251,10 @@ copy_root_vault() {
     binary_count=$((binary_count + 1))
   done < <(find "$vault_path" -type f -print0 2>/dev/null)
 
-  printf '  %s %s\n' "${G}✦${RESET}" "${BOLD}Root vault cloned to${RESET} ${C}${dest_dir}${RESET}"
-  printf '  %s %s\n' "${DIM}→${RESET}" "${copied} text files copied"
+  printf '  %s %s\n' "${G}✦${RESET}" "${BOLD}Root vault transposed to${RESET} ${C}${dest_dir}${RESET}"
+  printf '  %s %s\n' "${DIM}→${RESET}" "${copied} markdown raw copies written"
   if [[ "$skipped" -gt 0 ]]; then
-    printf '  %s %s\n' "${DIM}→${RESET}" "${skipped} files skipped (already exist)"
+    printf '  %s %s\n' "${DIM}→${RESET}" "${skipped} markdown raw copies skipped (already exist)"
   fi
   if [[ "$binary_count" -gt 0 ]]; then
     printf '  %s %s\n' "${DIM}→${RESET}" "${binary_count} non-text files (PDFs, images, etc.) left in original vault"
@@ -257,7 +282,7 @@ main() {
       --force) FORCE="1" ;;
       --no-color) R="" G="" B="" Y="" C="" M="" DIM="" BOLD="" RESET="" ;;
       --help|-h)
-        printf '\n  %s\n\n' "${BOLD}LLM Realm Setup${RESET}"
+        printf '\n  %s\n\n' "${BOLD}LLM Zone Setup${RESET}"
         printf '  %s\n\n' "${DIM}Usage:${RESET} bash bin/onboard.sh [--force] [--no-color]"
         printf '  %s\n\n' "${DIM}Flags:${RESET}"
         printf '    %-14s %s\n' "--force" "Overwrite existing setup data"
@@ -270,8 +295,8 @@ main() {
   # title
   printf '\n'
   divider
-  printf '\n  %s  %s\n' "${BOLD}${C}LLM Realm${RESET}" "${DIM}Realm Setup${RESET}"
-  printf '\n  %s\n' "${DIM}Quick setup — describe the project once; your LLM agent will start the Realm from this draft.${RESET}"
+  printf '\n  %s  %s\n' "${BOLD}${C}LLM Zone${RESET}" "${DIM}Zone Setup${RESET}"
+  printf '\n  %s\n' "${DIM}Quick setup — describe the project once; your LLM agent will start the Zone from this draft.${RESET}"
   divider
 
   if has_filled_setup && [[ "$FORCE" != "1" ]]; then
@@ -314,9 +339,9 @@ main() {
     return 1
   fi
 
-  # copy text-based files from root vault into repo
+  # transpose accepted text-based files into markdown raw copies
   printf '\n'
-  copy_root_vault "$root_vault_path" "$SourcesDir"
+  copy_root_vault "$root_vault_path" "$RawDir"
   printf '\n'
 
   # ── Step 3: External policy ───────────────────────────────────────────────
@@ -338,7 +363,7 @@ main() {
   printf '  %-18s %s\n' "${DIM}Description${RESET}" "$(echo "$project_description" | head -1)"
   printf '  %-18s %s\n' "${DIM}Artifacts${RESET}" "${project_artifacts:-—}"
   printf '  %-18s %s\n' "${DIM}Root Vault${RESET}" "$root_vault_path"
-  printf '  %-18s %s\n' "${DIM}Source copies${RESET}" "${C}${SourcesDir}${RESET}"
+  printf '  %-18s %s\n' "${DIM}Raw copies${RESET}" "${C}${RawDir}${RESET}"
   printf '  %-18s %s\n' "${DIM}External policy${RESET}" "$external_policy"
   printf '  %-18s %s\n' "${DIM}Preferred CLI${RESET}" "$preferred_cli"
   divider
@@ -364,7 +389,7 @@ updated: $TODAY
 setup_status: cli_started
 connects_to:
   - AGENTS.md
-  - 00_system/instructions/REALM_CONFIGURATION.md
+  - 00_system/instructions/ZONE_CONFIGURATION.md
   - 00_system/instructions/ONBOARDING.md
   - 03_logs/user_requests.md
 ---
@@ -398,7 +423,7 @@ connects_to:
 - External source policy: $external_policy
 
 ## Outputs
-- Start with source copies and evidence-grounded answers unless the researcher requests another output.
+- Start with raw copies and evidence-grounded answers unless the researcher requests another output.
 
 ## Blind Spots
 - To be discovered during mapping.
@@ -416,19 +441,19 @@ BLUEPRINT_EOF
 
   cat > "$Config" << CONFIG_EOF
 ---
-type: realm_configuration
+type: zone_configuration
 agent: setup_cli
 created: $TODAY
 updated: $TODAY
 setup_status: cli_started
 ---
 
-# Realm Configuration
+# Zone Configuration
 
 Agents read this before major work.
 
 \`\`\`yaml
-realm_type: research_framework
+zone_type: research_framework
 research_mode: evolving_complex_corpus
 root_vault_path: "$safe_vault"
 root_vault_mode: protected_append_only
@@ -444,19 +469,17 @@ l2_policy: checker_required
 
 protected_paths:
   - "$safe_vault"
-  - 02_user_realm/writing/
+  - 02_user_zone/
 
-archive_path: 01_llm_realm/archive/
 stale_after_days: 30
-archive_after_days: 60
 preferred_llm_cli: "$preferred_cli"
 \`\`\`
 
 ## Notes
 - This file was initialized by the CLI setup.
-- When an agent sees setup_status: cli_started, it should start the Realm from the setup draft, mark translated setup as setup_status: realm_started, and run initial indexing unless blocked.
-- The startup agent must translate the setup draft, build the master dictionary, generate source copy headers, build concept indexes, and complete the full startup checklist.
-- Source copies are created by the CLI during onboarding. The agent's job is to add YAML headers using the dictionary for consistent terminology.
+- When an agent sees setup_status: cli_started, it should start the Zone from the setup draft, mark translated setup as setup_status: zone_started, and run initial indexing unless blocked.
+- The startup agent must translate the setup draft, build the master dictionary, generate raw copy headers, create raw folder index.md files, build concept indexes, and complete the full startup checklist.
+- Raw copies are transposed into .md files by the CLI during onboarding. The agent's job is to add YAML headers using the dictionary for consistent terminology.
 - This file never grants permission to edit the Root Vault.
 CONFIG_EOF
 
@@ -486,7 +509,7 @@ CONFIG_EOF
 
   printf '\n  %s\n\n' "${BOLD}Next:${RESET}"
 
-  local startup_prompt="Execute 00_system/instructions/STARTUP.md then 00_system/instructions/ONBOARDING.md — the source copies are already in 01_llm_realm/sources/. Now: build the master dictionary by reading all copied files and extracting canonical names, places, organizations, and domain terms into 01_llm_realm/00_dictionary.md. Then generate YAML headers for every source copy using the dictionary for consistent terminology. Build concept indexes from repeated themes. Update 01_llm_realm/00_realm_index.md. Run the smoke test. Set setup_status to realm_started. Write the startup report at 05_agent_reports/ using the template at 00_system/templates/STARTUP_REPORT_TEMPLATE.md. Do not stop after reading files. Do not stop after one index. Do not re-ask questions the CLI draft already answered."
+  local startup_prompt="Execute 00_system/instructions/STARTUP.md then 00_system/instructions/ONBOARDING.md — the raw copies are already in 01_llm_zone/raw/. Now: build the master dictionary by reading all copied files and extracting canonical names, places, organizations, and domain terms into 01_llm_zone/00_dictionary.md. Then generate YAML headers for every raw copy using the dictionary for consistent terminology. Create an index.md in every folder under 01_llm_zone/raw/ that reconstructs the folder contents and briefly summarizes each raw copy. Build concept indexes from repeated themes. Update 01_llm_zone/00_zone_index.md. Run the smoke test. Set setup_status to zone_started. Write the startup report at 05_agent_reports/ using the template at 00_system/templates/STARTUP_REPORT_TEMPLATE.md. Do not stop after reading files. Do not stop after one index. Do not re-ask questions the CLI draft already answered."
 
   if copy_to_clipboard "$startup_prompt"; then
     info "Prompt copied to clipboard."

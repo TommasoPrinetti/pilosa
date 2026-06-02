@@ -1,119 +1,137 @@
-# LLM Realm
+# LLM Human Ecology System
 
-LLM Realm is a Markdown framework for turning a large source collection into a searchable, source-grounded research workspace for LLM agents.
+LLM Zone is a research framework that turns a protected Root Vault of source material into a searchable, header-indexed, multi-agent-readable knowledge map. The orchestrator routes every user prompt through specialist sub-agents (Conceptualizer, Navigator, Packer, Checker, Cleaner, Startup); the sub-agents never ask questions, only the orchestrator does. Startup is the one-shot path that translates the setup draft and indexes the vault. Cleaner audits repo hygiene and proposes archival moves. Checker is mandatory on every non-fast-path route. Read `AGENTS.md` for the routing contract.
 
-It keeps original material in a protected **Root Vault** and builds a lightweight **LLM Realm** beside it: 1:1 source copies with YAML headers, a shared dictionary, concept indexes, logs, and reports that help agents find and verify material without losing the original sources.
+This README is the development-branch checklist. Items are checked only when the repository currently contains an implemented framework, script, protocol, or active instruction that satisfies the task. Items that are only desired behavior, contradicted by current implementation, or not yet wired into the system remain unchecked.
 
-## Requirements
+Last reviewed: 2026-06-02.
 
-| Tool | Version |
-|---|---|
-| bash | `>=3.2` (ships with macOS and most Linux distros) |
-| Git Bash | Required only for Windows double-click onboarding |
-| LLM agent CLI | Optional, but recommended: Codex, Claude Code, OpenCode, Kilo, or equivalent |
+## 1. Knowledge / Context System
 
-## Quick Start
+* [x] Create a glossary + dictionaries system → `GLOSSARY.md`, [[dictionary]]
+* [x] Detect languages automatically → dictionary records language per term, raw copy headers include `language` field
+* [x] Structure project-specific files and contexts → full directory tree
+* [x] Build an internal copy/index of the root vault → `bin/onboard.sh` transposes raw copies, `STARTUP.md` indexes
+* [x] Index YAML instructions/configurations → YAML headers are the core retrieval mechanism
+* [x] Copy only `.md` files into the indexed environment → `onboard.sh` transposes accepted text formats into markdown raw copies
+* [x] Preserve/connect headers and links during indexing → `[[wikilinks]]` in headers, `OBSIDIAN_CONSTRAINTS.md` defines rules
+* [x] Generate folder `index.md` retrieval maps → `STARTUP.md` Phase 2 Step 2.5, `HEADER_TEMPLATE.md` raw_folder_index schema
+* [ ] Improve token and context management strategy
+* [x] Move more functionality into Obsidian-compatible structures → `OBSIDIAN_CONSTRAINTS.md` created, wikilinks supported
+* [x] Support Obsidian-style paths and clickable links inside reports → verbatim quote format, wikilinks in Packer output
 
-```bash
-git clone https://github.com/<owner>/llm-realm.git
-cd llm-realm
-bash bin/onboard.sh
-```
+## 2. Startup / Initialization Workflow
 
-On macOS, you can also double-click [`onboard.command`](./onboard.command). On Windows, install Git for Windows, then double-click [`onboard.cmd`](./onboard.cmd), which runs the same Bash onboarding script through Git Bash.
+* [x] Define startup bootstrap sequence → `STARTUP.md` (Phase 1 setup translation + Phase 2 indexing)
+* [x] On startup: copy and process headers → `STARTUP.md` Step 2.4
+* [x] On startup: load glossary + dictionaries → `STARTUP.md` Step 2.3 (multilingual dictionary)
+* [x] On startup: generate onboarding questions → `bin/onboard.sh`
+* [x] Delete or archive `startup.md` after activation → [[.trash/]] directory for retired files
+* [x] Move initialization files into archive/generated folder → [[.trash/]] for retired files
+* [x] Install/setup required services automatically during onboarding → pure bash, zero deps
+* [x] Avoid requiring global NPM usage → pure bash, zero deps
 
-The onboarding command asks for the project name, Root Vault path, source policy, and preferred agent CLI. It writes the setup draft into:
+## 3. Agent Behavior & Orchestration
 
-| File | Purpose |
-|---|---|
-| [`02_user_realm/RESEARCH_BLUEPRINT.md`](./02_user_realm/RESEARCH_BLUEPRINT.md) | Project description and research direction |
-| [`00_system/instructions/REALM_CONFIGURATION.md`](./00_system/instructions/REALM_CONFIGURATION.md) | Root Vault path, source policy, protected paths, and evidence rules |
+### Main Agent Behavior
 
-After onboarding, start your agent in this repository and ask it to start the Realm. The agent will follow [`AGENTS.md`](./AGENTS.md), [`STARTUP.md`](./00_system/instructions/STARTUP.md), and [`ONBOARDING.md`](./00_system/instructions/ONBOARDING.md) to build the dictionary, generate source copy headers, and run a retrieval smoke test.
+* [x] Agent should behave like an orchestrator → `AGENTS.md`
+* [x] Agent must remain naturally curious → `AGENTS.md`
+* [x] Agent should not get locked into one POV → `AGENTS.md`
+* [x] Agent should constantly ask questions → `AGENTS.md` (orchestrator owns the `question` tool)
+* [x] Agent should guide the search process actively → `AGENTS.md`
+* [x] Agent should provide counter-perspectives → `AGENTS.md`
+* [x] Agent should avoid blocking/assertive modes → `AGENTS.md`
+* [x] Agent should augment user thinking rather than replace it → `AGENTS.md`
+* [x] Agent should reason more broadly than the immediate process → `AGENTS.md` deeper-question and counter-argument rules
+* [x] Agent should maintain question-driven exploration → `AGENTS.md`
+* [x] Orchestrator can pre-process the user prompt before dispatch (trim, summarize, normalize) → `AGENTS.md` Step 4
+* [x] Orchestrator can deviate from the default route table at runtime → `AGENTS.md` Step 3
 
-## Verify Setup
+### Sub-Agent System
 
-After the startup agent finishes, run:
+* [x] Improve sub-agent calling structure → `AGENTS.md` default route shapes
+* [x] Make sub-agents easier to invoke with precise profiles → `[[00_system/]]sub_agents/*/SOUL.md` with `## Core Contract` and `## Detail` sections
+* [x] Define dedicated sub-agent profiles → `SOUL.md` files
+* [x] Sub-agents are executors; only the orchestrator asks questions → `AGENTS.md` Hard Rules
+* [ ] Verify whether sub-agents were already called
+* [ ] Allow agents to call many sub-agents dynamically
 
-```bash
-bash bin/check-startup.sh
-```
+### Search / Research Behavior
 
-The check passes only when required placeholders are gone, `setup_status` is set to `realm_started`, the Root Vault path exists, and the startup aggregator has been created.
+* [x] Provide more project context when researchers are involved → `RESEARCH_BLUEPRINT.md`
+* [x] Make search behavior more exploratory and contextual → `AGENTS.md`, Conceptualizer brief, Navigator search order
 
-## Repository Layout
+## 4. Reporting & Output
 
-| Path | Role |
-|---|---|
-| [`AGENTS.md`](./AGENTS.md) | Main operating contract for autonomous agents |
-| [`GLOSSARY.md`](./GLOSSARY.md) | Shared vocabulary for the framework |
-| [`00_system/instructions/`](./00_system/instructions/) | Startup, routing, architecture, and configuration rules |
-| [`00_system/sub_agents/`](./00_system/sub_agents/) | Sub-agent SOUL.md files for Conceptualizer, Navigator, Packer, and Checker |
-| [`00_system/templates/`](./00_system/templates/) | Report templates used during startup and agent work |
-| [`01_llm_realm/`](./01_llm_realm/) | Empty retrieval scaffold populated during startup |
-| [`02_user_realm/`](./02_user_realm/) | Project blueprint and protected writing area |
-| [`03_logs/`](./03_logs/) | Request, source intake, external query, and execution logs |
-| [`05_agent_reports/`](./05_agent_reports/) | Generated reports, checkpoints, evidence packets, and verification notes |
+### Report Structure
 
-## Core Workflow
+* [x] Improve report structure overall → clean Packer output format (Answer, Evidence, Analysis, Limitations)
+* [ ] Enable direct extraction from markdown into reports
+* [x] Keep reports cleaner and less process-heavy → Checker verification is internal, not shown
+* [x] Delete intermediate process noise when appropriate → only final report is presented
+* [x] Keep primarily the final report/output → ONE clean markdown file
+* [x] Improve navigation inside reports with Obsidian paths → wikilinks, verbatim quote format
+* [x] Ensure reports contain richer contextual references → verbatim format with author, source, date, bold key passage
+* [x] Mandatory verbatim quote format with author/title/date/place/bold → `AGENTS.md` Verbatim Quotes, Packer SOUL
 
-```text
-Root Vault
-  read-only source corpus
-        |
-        v
-Startup
-  survey folders, create mirror indexes, run smoke test
-        |
-        v
-LLM Realm
-  searchable indexes, fragments, concepts, logs, reports
-        |
-        v
-Agent work
-  route request, retrieve evidence, synthesize, verify
-```
+### Input / Output Routing
 
-Agents search `01_llm_realm/` first and open the Root Vault only when they need original context, unmapped material, or Checker verification.
+* [x] Define clear log/input/routing task delegation → `AGENTS.md` The Loop
+* [x] Separate orchestration logic from execution logic → orchestrator (`AGENTS.md`) vs specialists (`SOUL.md`)
 
-## Agent Pipeline
+## 5. UX / Interaction Design
 
-| Stage | Agent | Responsibility |
-|---|---|---|
-| 1 | Conceptualizer | Turns a request into search concepts and a route |
-| 2 | Navigator | Finds material in the Realm and Root Vault |
-| 3 | Packer | Turns retrieved material into a report or structured answer |
-| 4 | Checker | Verifies quotes, claims, paths, and index integrity |
+### User Interaction
 
-The home session orchestrates the sequence through [`PROCESS_ROUTER.md`](./00_system/instructions/PROCESS_ROUTER.md).
+* [x] Build onboarding question flows → `bin/onboard.sh`
+* [x] Prepare dynamic contextual question series → `STARTUP.md` Step 2.6 disambiguation
+* [x] Make questioning adaptive to user/project state → `STARTUP.md` Phase 1 question gating
+* [ ] Create different "attitudes"/interaction modes for orchestration
 
-## Rules To Preserve
+### Knowledge Navigation
 
-- Keep the Root Vault read-only.
-- Keep copied material in `01_llm_realm/sources/` limited to text-based source copies.
-- Keep `02_user_realm/writing/` protected from agent edits.
-- Require source paths for factual claims.
-- Run Checker before presenting source-grounded claims as established.
-- Keep a fresh clone bare: no project-specific logs, reports, or mirror indexes should ship in the repository.
+* [x] Make Obsidian-style references clickable → `OBSIDIAN_CONSTRAINTS.md`
+* [x] Create hidden `.md` guides to connect systems → `OBSIDIAN_CONSTRAINTS.md`
+* [x] Folder `index.md` retrieval maps guide Navigator before grep → `STARTUP.md` Step 2.5
+* [x] Improve contextual navigation across notes/files → `connects_to`, zone index, dictionary, concept index template
 
-## Useful Commands
+## 6. Infrastructure / Technical Decisions
 
-| Command | Purpose |
-|---|---|
-| `bash bin/onboard.sh` | Collect setup answers and write the startup draft |
-| `./onboard.command` | macOS launcher for onboarding |
-| `onboard.cmd` | Windows launcher for onboarding through Git Bash |
-| `bash bin/check-startup.sh` | Validate that startup completed cleanly |
+### Internal Vault Strategy
 
-## Fresh Clone State
+* [x] Create an internal mirrored vault → [[raw/]]
+* [x] Synchronize root vault into internal indexed structure → initial copy via `bin/onboard.sh`; not continuous sync
+* [x] Folder indexes replace embedded vault tree in Navigator's contract → single source of truth for structure map
+* [ ] Explore scalable indexing architecture
 
-A fresh clone is intentionally sparse:
+### Dependency Management
 
-- `01_llm_realm/sources/` has no project-specific source copies yet.
-- `05_agent_reports/` is empty.
-- `03_logs/` contains empty log scaffolds.
-- `03_logs/research_tendencies/RESEARCH_NEED_AGGREGATOR.md` is generated during onboarding from its template.
-- `REALM_CONFIGURATION.md` and `RESEARCH_BLUEPRINT.md` start with setup placeholders.
-- `.trash/` is empty (retired files are archived here instead of deleted).
+* [x] Package dependencies locally in vault → pure bash, zero deps
+* [x] Reduce reliance on globally installed packages → zero external packages
+* [x] Design standalone environment setup → `bin/onboard.sh` + `bin/check-startup.sh`
 
-That is expected. The first real content appears only after onboarding and startup run against a real Root Vault.
+### Cleanup and Archival
+
+* [x] Cleaner never moves to [[.trash/]] or deletes without user confirmation → `Cleaner/SOUL.md` user-confirmation gate
+* [x] Cleaner evaluates both age and research tendency before proposing archival moves → `Cleaner/SOUL.md` staleness rule
+* [x] Retired files are moved to [[.trash/]] (not deleted) with date suffix → `AGENTS.md` Write Boundaries
+
+## 7. Documentation & Communication
+
+### Structural Documentation
+
+* [x] Define workflows formally → `AGENTS.md`
+* [x] Document startup lifecycle → `STARTUP.md`
+* [x] Document agent orchestration architecture → `SYSTEM_ARCHITECTURE_MAP.md`
+* [x] Document indexing + vault synchronization process → `STARTUP.md`, `bin/onboard.sh`
+* [x] AGENTS.md is the single routing file; routing logic no longer split across PROCESS_ROUTER + AGENTS
+
+## 8. Open Questions / Research Directions
+
+* [ ] How should token/context budgeting work long term?
+* [ ] What is the optimal orchestration strategy for sub-agents?
+* [ ] How much process visibility should remain in final reports?
+* [ ] How should the system balance exploration vs execution?
+* [ ] How should agent "attitudes" be modeled technically?
+* [ ] How should the log/report rotation policy be tuned once real data accumulates?

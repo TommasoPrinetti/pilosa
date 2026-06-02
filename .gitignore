@@ -40,3 +40,7 @@ __pycache__/
 
 # OS-generated metadata files
 *.localized
+
+# Trash directory: local-only archive of retired framework files.
+# Keep on disk for history, never track in git.
+.trash/

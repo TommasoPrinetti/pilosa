@@ -1,15 +1,15 @@
 ---
 type: dictionary
 role: shared_vocabulary
-purpose: [ensure coherent terminology across source copy headers]
-scope: [all source copies in 01_llm_realm/sources/]
+purpose: [ensure coherent terminology across raw copy headers]
+scope: [all raw copies in 01_llm_zone/raw/]
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 ---
 
 # Master Dictionary
 
-The dictionary is built during startup by reading all text-based source files. It ensures that every source copy header uses the same canonical terms. The orchestrator agent consults this file when generating or updating YAML headers.
+The dictionary is built during startup by reading all text-based source files. It ensures that every raw copy header uses the same canonical terms. The orchestrator agent consults this file when generating or updating YAML headers.
 
 **Multilingual rule:** Keywords appear in the language they were found in. If a source is in French, French keywords are recorded. If a concept appears in multiple languages, list all language variants as aliases so grep finds any form.
 

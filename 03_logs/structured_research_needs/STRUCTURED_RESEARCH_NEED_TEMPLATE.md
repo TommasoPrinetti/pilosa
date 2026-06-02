@@ -31,7 +31,7 @@ optional_evidence:
   - new incoming sources
 related_hypothesis: [what this may support]
 action_for_agents:
-  - search Realm indexes for [concept]
+  - search Zone indexes for [concept]
   - inspect Root Vault or registered source files linked by those indexes
   - update [concept] thematic index with new fragments
   - check source_intake_log.md for recent relevant batches

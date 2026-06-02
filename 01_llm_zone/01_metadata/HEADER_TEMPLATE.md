@@ -5,12 +5,11 @@ purpose: [define the canonical YAML header fields used across the framework]
 scope: [all framework markdown files]
 connects_to:
   - AGENTS.md
-  - 00_system/instructions/PROCESS_ROUTER.md
-  - 01_llm_realm/00_realm_index.md
-  - 01_llm_realm/00_dictionary.md
+  - 01_llm_zone/00_zone_index.md
+  - 01_llm_zone/00_dictionary.md
 status: active
 created: 2026-05-26
-updated: 2026-05-28
+updated: 2026-06-02
 ---
 
 # Header Template
@@ -38,13 +37,13 @@ updated: YYYY-MM-DD
 
 Use the fields needed for the file. Do not add empty analytic fields.
 
-## Source Copy Header
+## Raw Copy Header
 
-Required for every file in `01_llm_realm/sources/`. The dictionary is the source of truth for canonical terms.
+Required for every file in [[raw/]]. The dictionary is the source of truth for canonical terms.
 
 ```yaml
 ---
-type: source_copy
+type: raw_copy
 source: "/absolute/path/to/root_vault/[relative-path]/[filename]"
 source_type: interview | fieldnote | article | report | dataset | correspondence | researcher_note
 text_type: md | txt | rtf | csv | json | yaml | ...
@@ -64,11 +63,34 @@ updated: YYYY-MM-DD
 
 Rules:
 - `language` is the ISO 639-1 code of the source file's primary language (en, fr, pt, es, etc.).
-- `people`, `places`, `organizations` MUST use canonical forms from `01_llm_realm/00_dictionary.md`.
+- `people`, `places`, `organizations` MUST use canonical forms from [[dictionary]].
 - `keywords` include both canonical terms and aliases in the source's language (so grep finds any variant).
 - `concepts` link to concept index files in `03_concept_indexes/`.
-- `related_sources` lists other source copies with shared topics or concepts.
+- `related_sources` lists other raw copies with shared topics or concepts.
 - Omit fields that have no value — do not write `people: []`.
+
+## Raw Folder Index Header
+
+Required for every generated `index.md` file under [[raw/]].
+
+```yaml
+---
+type: raw_folder_index
+role: folder_retrieval_map
+purpose: [reconstruct the folder contents and summarize direct raw copies]
+scope: [[raw/]][relative-folder]
+connects_to:
+  - [[zone_index]]
+  - [[raw/]]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
+```
+
+Each folder index body must include:
+- a short folder summary,
+- a child-folder table,
+- a file table with raw copy path, original source path, short content summary, key topics, and status.
 
 ## Header For Concept Indexes
 
@@ -79,9 +101,9 @@ role: concept_retrieval_layer
 purpose: [group fragments that share one recurring idea]
 scope: [one concept family]
 connects_to:
-  - 01_llm_realm/00_realm_index.md
-  - 01_llm_realm/sources/
-  - 05_agent_reports/
+  - [[zone_index]]
+  - [[raw/]]
+  - [[05_agent_reports/]]
 sub_agent: Navigator
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
@@ -100,9 +122,9 @@ role: evidence_surface
 purpose: [point to the source material this file summarizes]
 scope: [single file or small source cluster]
 connects_to:
-  - 01_llm_realm/00_realm_index.md
-  - 03_logs/source_intake_log.md
-  - 05_agent_reports/
+  - [[zone_index]]
+  - [[source_intake_log]]
+  - [[05_agent_reports/]]
 source_types: [interview, fieldnote, dataset]
 evidence_type: [primary | processed | interpretive | external]
 evidence_level: [L1 | L2]

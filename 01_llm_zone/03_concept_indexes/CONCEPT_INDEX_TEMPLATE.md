@@ -1,16 +1,16 @@
 # Concept Index Template
 
-Use when several source copies share a concept.
+Use when several raw copies share a concept.
 
 ```md
 ---
 type: concept_index
 role: concept_retrieval_layer
-purpose: [group source copies that share one recurring idea]
+purpose: [group raw copies that share one recurring idea]
 scope: [one concept family]
 connects_to:
-  - 01_llm_realm/00_realm_index.md
-  - 01_llm_realm/sources/
+  - 01_llm_zone/00_zone_index.md
+  - 01_llm_zone/raw/
   - 05_agent_reports/
 sub_agent: Navigator
 created: [date]
@@ -33,14 +33,14 @@ negative_case_status: none_found | partial | present | needs_search
 [[Category]]
 
 ## Evidence
-| Source copy | Why it matters | Confidence |
+| Raw copy | Why it matters | Confidence |
 |---|---|---|
-| `/sources/[path]/[file]` | [short note] | high / medium / low |
+| `/raw/[path]/[file]` | [short note] | high / medium / low |
 
 ## Negative Cases
-| Source copy | Counter-pattern | Checker status |
+| Raw copy | Counter-pattern | Checker status |
 |---|---|---|
-| `/sources/[path]/[file]` | [what it weakens] | pending / partial / verified |
+| `/raw/[path]/[file]` | [what it weakens] | pending / partial / verified |
 
 ## Comparison
 - Similar: [[concept]]
