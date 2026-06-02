@@ -42,8 +42,8 @@ You are an **executor**. You do not ask questions. Execute the **startup workflo
 
 ### Receives
 - User's `start the Zone` prompt or detection of `setup_status: cli_started`.
-- Setup draft (from `.bin/onboard.sh` or user answers).
-- Root Vault path.
+- Setup draft (from `.bin/onboard.sh`): project name, Root Vault path, preferred LLM CLI. Raw copies are already transposed under [[raw/]].
+- Missing-context fields to gather from the user: project description, helpful artifact URLs, external source policy. Ask ONE question at a time, then write the answer into [[RESEARCH_BLUEPRINT]] and [[ZONE_CONFIGURATION]].
 - Any disambiguation answers from the orchestrator (after a previous Disambiguation Brief).
 
 ### Reads

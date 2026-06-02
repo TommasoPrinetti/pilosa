@@ -26,21 +26,10 @@ RawDir="$ROOT/01_llm_zone/raw"
 TEXT_EXTENSIONS="md|txt|rtf|csv|json|yaml|yml|toml|xml|html|css|js|ts|py|rb|sh|log|ini|cfg|conf|tex|bib|org|adoc|rst|wiki|mediawiki|asciidoc|textile|dokuwiki|pmwiki|tiddlywiki|opml|outliner|workflowy|dynalist|logseq|roam|obsidian"
 
 divider() { printf '%s\n' "${DIM}$(printf '%.0s─' 1 {1..78})${RESET}"; }
-header() { printf '\n%s\n\n' "${BOLD}${C}$1${RESET}"; }
-info()   { printf '  %s %s\n' "${DIM}→${RESET}" "$1"; }
-ok()     { printf '  %s %s\n' "${G}✦${RESET}" "$1"; }
-warn()   { printf '  %s %s\n' "${Y}⚠${RESET}" "$1"; }
-
-flush_paste() {
-  # Drain any pre-buffered input from stdin (e.g., from a paste that left
-  # content in the kernel buffer after a previous read). Prevents paste
-  # spillover into the next prompt. Non-blocking: returns immediately if
-  # no input is available.
-  local _
-  while read -t 0 -r _ 2>/dev/null; do
-    IFS= read -r _ 2>/dev/null || break
-  done
-}
+header()  { printf '\n%s\n\n' "${BOLD}${C}$1${RESET}"; }
+info()    { printf '  %s %s\n' "${DIM}→${RESET}" "$1"; }
+ok()      { printf '  %s %s\n' "${G}✦${RESET}" "$1"; }
+warn()    { printf '  %s %s\n' "${Y}⚠${RESET}" "$1"; }
 
 ask() {
   local prompt="$1" default="${2:-}" hint="${3:-}"
@@ -51,39 +40,7 @@ ask() {
   local reply
   IFS= read -r reply || true
   reply="${reply:-$default}"
-  flush_paste
   echo "$reply"
-}
-
-ask_multiline() {
-  local prompt="$1" hint="${2:-}"
-  printf '%s\n' "${BOLD}${prompt}${RESET}" >&2
-  [[ -n "$hint" ]] && printf '  %s %s\n' "${DIM}↳${RESET}" "${hint}" >&2
-  printf '  %s\n' "${DIM}↳ Paste or type freely. To finish, type a single . on its own line and press Enter.${RESET}" >&2
-  local lines="" line=""
-  while true; do
-    IFS= read -r line || break
-    [[ "$line" == "." ]] && break
-    [[ -n "$lines" ]] && lines="${lines}
-${line}" || lines="$line"
-  done
-  flush_paste
-  echo "$lines"
-}
-
-normalize_path_input() {
-  local value="$1"
-
-  # Trim accidental leading/trailing whitespace and one pair of shell-style quotes.
-  value="${value#"${value%%[![:space:]]*}"}"
-  value="${value%"${value##*[![:space:]]}"}"
-  if [[ ${#value} -ge 2 ]]; then
-    if [[ "${value:0:1}" == "'" && "${value: -1}" == "'" ]] || [[ "${value:0:1}" == '"' && "${value: -1}" == '"' ]]; then
-      value="${value:1:${#value}-2}"
-    fi
-  fi
-
-  echo "$value"
 }
 
 select_menu() {
@@ -138,6 +95,18 @@ copy_to_clipboard() {
 }
 
 sanitize_yaml() { echo "$1" | tr '"' "'" | tr '\n' ' '; }
+
+normalize_path_input() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  if [[ ${#value} -ge 2 ]]; then
+    if [[ "${value:0:1}" == "'" && "${value: -1}" == "'" ]] || [[ "${value:0:1}" == '"' && "${value: -1}" == '"' ]]; then
+      value="${value:1:${#value}-2}"
+    fi
+  fi
+  echo "$value"
+}
 
 should_skip_source_file() {
   case "$1" in
@@ -212,8 +181,6 @@ copy_root_vault() {
   local vault_path="$1"
   local dest_dir="$2"
 
-  # Count text files first. Keep this scan POSIX-find compatible so it works
-  # on stock macOS, Linux, and Git Bash without GNU find extensions.
   local file_count=0
   while IFS= read -r -d '' f; do
     should_skip_source_file "$f" && continue
@@ -234,8 +201,6 @@ copy_root_vault() {
     should_skip_source_file "$src_file" && continue
     is_text_source_file "$src_file" || continue
 
-    # Compute the Root Vault-relative path, then transpose every accepted
-    # text format into a .md raw copy inside the indexed environment.
     local rel_path="${src_file#"$vault_path"/}"
     local raw_rel_path
     raw_rel_path="$(markdown_raw_rel_path "$rel_path")"
@@ -256,7 +221,6 @@ copy_root_vault() {
 
   loader_stop
 
-  # count non-text files for the summary
   local binary_count=0
   while IFS= read -r -d '' f; do
     should_skip_source_file "$f" && continue
@@ -281,7 +245,7 @@ has_filled_setup() {
   local b c
   b=$(<"$Blueprint")
   c=$(<"$Config")
-  for ph in "[project name]" "[project description]" "[path]"; do
+  for ph in "[project name]" "[path]"; do
     [[ "$b" == *"$ph"* || "$c" == *"$ph"* ]] && return 1
   done
   return 0
@@ -300,6 +264,7 @@ main() {
         printf '  %s\n\n' "${DIM}Flags:${RESET}"
         printf '    %-14s %s\n' "--force" "Overwrite existing setup data"
         printf '    %-14s %s\n' "--no-color" "Disable colored output"
+        printf '\n  %s\n' "${DIM}Collects: project name, CLI preference, Root Vault path. The rest is gathered by your LLM CLI after the handoff.${RESET}"
         return 0
         ;;
     esac
@@ -315,8 +280,8 @@ main() {
   printf '  %s\n' "${BOLD}${C}╚═╝     ╚═╝╚══════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝${RESET}"
   printf '\n'
   divider
-  printf '\n  %s  %s\n' "${BOLD}${C}LLM Zone${RESET}" "${DIM}Zone Setup${RESET}"
-  printf '\n  %s\n' "${DIM}Quick setup — describe the project once; your LLM agent will start the Zone from this draft.${RESET}"
+  printf '\n  %s  %s\n' "${BOLD}${C}LLM Zone${RESET}" "${DIM}Fast Setup${RESET}"
+  printf '\n  %s\n' "${DIM}Three questions. Your LLM agent gathers the rest and runs indexing.${RESET}"
   divider
 
   if has_filled_setup && [[ "$FORCE" != "1" ]]; then
@@ -327,25 +292,17 @@ main() {
     fi
   fi
 
-  # ── Step 1: Project Identity ───────────────────────────────────────────────
-  header "Step 1/4 · Project Identity"
+  # ── Question 1: project name ─────────────────────────────────────────────
   project_title=""
   while [[ -z "$project_title" ]]; do
     project_title="$(ask "Project name" "" "e.g. My Research Project")"
     [[ -z "$project_title" ]] && printf '  %s\n' "${R}Project name is required.${RESET}" >&2
   done
-  project_description=""
-  while [[ -z "$project_description" ]]; do
-    project_description="$(ask_multiline "Project description" "paste or type, empty line to finish")"
-    [[ -z "$project_description" ]] && printf '  %s\n' "${R}Project description is required.${RESET}" >&2
-  done
-  project_artifacts_raw="$(ask "Helpful artifacts — URLs or file paths (comma-separated)" "none" "e.g. https://mysite.com, /Users/name/data.csv")"
-  project_artifacts="$project_artifacts_raw"
-  case "$project_artifacts" in none|None|NONE|"") project_artifacts="";; esac
 
-  # ── Step 2: Root Vault ────────────────────────────────────────────────────
-  header "Step 2/4 · Root Vault"
-  info "Absolute path to your source files. The LLM will discover types and structure."
+  # ── Question 2: CLI preference ───────────────────────────────────────────
+  preferred_cli="$(select_menu "Preferred LLM CLI" "Claude Code" "Codex" "OpenCode" "Kilo" "Other")"
+
+  # ── Question 3: Root Vault path ──────────────────────────────────────────
   root_vault_path=""
   while [[ -z "$root_vault_path" ]]; do
     root_vault_path="$(ask "Root Vault path (absolute)" "" "e.g. /Users/name/Documents/my-sources")"
@@ -353,7 +310,6 @@ main() {
     [[ -z "$root_vault_path" ]] && printf '  %s\n' "${R}Root Vault path is required.${RESET}" >&2
   done
 
-  # validate root vault exists
   if [[ ! -d "$root_vault_path" ]]; then
     printf '\n  %s Root Vault path does not exist: %s\n\n' "${R}✗${RESET}" "$root_vault_path" >&2
     return 1
@@ -363,37 +319,6 @@ main() {
   printf '\n'
   copy_root_vault "$root_vault_path" "$RawDir"
   printf '\n'
-
-  # ── Step 3: External policy ───────────────────────────────────────────────
-  header "Step 3/4 · External Source Policy"
-  external_policy="$(select_menu "May the LLM fetch external sources from the web?" "no" "yes")"
-
-  if [[ "$external_policy" == "no" && -n "$project_artifacts" ]]; then
-    printf '\n  %s Note: You listed URLs, but external access is disabled.\n' "${Y}⚠${RESET}"
-    info "Agents will record those URLs but must not fetch them."
-  fi
-
-  # ── Step 4: CLI preference ────────────────────────────────────────────────
-  header "Step 4/4 · LLM CLI"
-  preferred_cli="$(select_menu "Preferred LLM CLI" "Claude Code" "Codex" "OpenCode" "Kilo" "Other")"
-
-  # ── Review ─────────────────────────────────────────────────────────────────
-  header "Review"
-  printf '  %-18s %s\n' "${DIM}Project${RESET}" "$project_title"
-  printf '  %-18s %s\n' "${DIM}Description${RESET}" "$(echo "$project_description" | head -1)"
-  printf '  %-18s %s\n' "${DIM}Artifacts${RESET}" "${project_artifacts:-—}"
-  printf '  %-18s %s\n' "${DIM}Root Vault${RESET}" "$root_vault_path"
-  printf '  %-18s %s\n' "${DIM}Raw copies${RESET}" "${C}${RawDir}${RESET}"
-  printf '  %-18s %s\n' "${DIM}External policy${RESET}" "$external_policy"
-  printf '  %-18s %s\n' "${DIM}Preferred CLI${RESET}" "$preferred_cli"
-  divider
-
-  if [[ "$FORCE" != "1" ]]; then
-    if ! confirm "Write files?"; then
-      printf '\n  %s\n\n' "${DIM}Cancelled. Nothing was written.${RESET}"
-      return 0
-    fi
-  fi
 
   # ── ensure directories exist ──────────────────────────────────────────────
   mkdir -p "$(dirname "$Blueprint")"
@@ -410,7 +335,7 @@ setup_status: cli_started
 connects_to:
   - AGENTS.md
   - 00_system/instructions/ZONE_CONFIGURATION.md
-  - 00_system/instructions/ONBOARDING.md
+  - 00_system/instructions/STARTUP.md
   - 03_logs/user_requests.md
 ---
 
@@ -418,38 +343,37 @@ connects_to:
 
 ## Project
 - Title: ${project_title:-[project name]}
-- Description:
-  $(echo "$project_description" | sed 's/^/  /')
+- Description: [project description — to be gathered by the LLM CLI during startup]
 
 ## Project Artifacts
-- ${project_artifacts:-No additional URLs or file paths provided during fast setup.}
+- [helpful artifact URLs or file paths, if any — to be gathered by the LLM CLI]
 
 ## Sources
 - Root Vault path: ${root_vault_path:-[path]}
-- Main source types: To be discovered from the Root Vault.
-- Expected incoming sources: Not specified during fast setup.
+- Main source types: [inferred during startup from the Root Vault]
+- Expected incoming sources: [inferred during startup]
 
 ## Research Vocabulary
-- Key actors / institutions / places: To be inferred from the project description, artifacts, and Root Vault.
-- Key concepts: To be inferred from the project description, artifacts, and Root Vault.
-- Sensitizing concepts, not evidence: None specified during fast setup.
-- Theoretical frames, not forced labels: None specified during fast setup.
+- Key actors / institutions / places: [inferred during startup]
+- Key concepts: [inferred during startup]
+- Sensitizing concepts, not evidence: [inferred during startup]
+- Theoretical frames, not forced labels: [inferred during startup]
 
 ## Method And Evidence
-- Methods: To be inferred from the project description and source collection.
+- Methods: [inferred during startup]
 - Claims require source paths.
 - L2 clues require Checker verification before reporting.
 - External sources must stay labeled external unless moved into the Root Vault.
-- External source policy: $external_policy
+- External source policy: no (LLM will confirm with the user during startup)
 
 ## Outputs
-- Start with raw copies and evidence-grounded answers unless the researcher requests another output.
+- Start with folder mirror indexes and evidence-grounded answers unless the researcher requests another output.
 
 ## Blind Spots
-- To be discovered during mapping.
+- [identified during startup]
 
 ## Researcher Preferences
-Use concise, source-grounded answers. Ask follow-up questions only when needed to avoid a risky assumption.
+[stated or inferred during startup]
 
 ## Preferred LLM CLI
 $preferred_cli
@@ -479,7 +403,7 @@ root_vault_path: "$safe_vault"
 root_vault_mode: protected_append_only
 
 source_policy: internal_first
-external_sources_allowed: $external_policy
+external_sources_allowed: no
 external_logs:
   - 03_logs/external_queries.md
   - 03_logs/source_intake_log.md
@@ -496,10 +420,10 @@ preferred_llm_cli: "$preferred_cli"
 \`\`\`
 
 ## Notes
-- This file was initialized by the CLI setup.
-- When an agent sees setup_status: cli_started, it should start the Zone from the setup draft, mark translated setup as setup_status: zone_started, and run initial indexing unless blocked.
-- The startup agent must translate the setup draft, build the master dictionary, generate raw copy headers, create raw folder index.md files, build concept indexes, and complete the full startup checklist.
-- Raw copies are transposed into .md files by the CLI during onboarding. The agent's job is to add YAML headers using the dictionary for consistent terminology.
+- This file was initialized by the CLI fast setup.
+- The CLI collected: project name, Root Vault path, preferred LLM CLI. Raw copies are transposed into 01_llm_zone/raw/ under the same path.
+- The LLM CLI agent must gather the remaining fields during startup: project description, helpful artifact URLs, external source policy. Then update both this file and [[RESEARCH_BLUEPRINT]] accordingly.
+- When setup_status reaches zone_started, the Startup sub-agent has built the master dictionary, generated YAML headers, created folder index.md files, and built concept indexes.
 - This file never grants permission to edit the Root Vault.
 CONFIG_EOF
 
@@ -529,7 +453,41 @@ CONFIG_EOF
 
   printf '\n  %s\n\n' "${BOLD}Next:${RESET}"
 
-  local startup_prompt="Execute 00_system/instructions/STARTUP.md then 00_system/instructions/ONBOARDING.md — the raw copies are already in 01_llm_zone/raw/. Now: build the master dictionary by reading all copied files and extracting canonical names, places, organizations, and domain terms into 01_llm_zone/00_dictionary.md. Then generate YAML headers for every raw copy using the dictionary for consistent terminology. Create an index.md in every folder under 01_llm_zone/raw/ that reconstructs the folder contents and briefly summarizes each raw copy. Build concept indexes from repeated themes. Update 01_llm_zone/00_zone_index.md. Run the smoke test. Set setup_status to zone_started. Write the startup report at 05_agent_reports/ using the template at 00_system/templates/STARTUP_REPORT_TEMPLATE.md. Do not stop after reading files. Do not stop after one index. Do not re-ask questions the CLI draft already answered."
+  local startup_prompt
+  startup_prompt=$(cat <<PROMPT_EOF
+This is the LLM Zone startup handoff. The user has completed fast CLI setup.
+
+Read these files first, in this order:
+1. AGENTS.md
+2. 00_system/instructions/ZONE_CONFIGURATION.md
+3. 02_user_zone/RESEARCH_BLUEPRINT.md
+4. 00_system/instructions/STARTUP.md
+5. 00_system/sub_agents/startup/SOUL.md
+
+The setup draft already contains:
+- Project name: ${project_title}
+- Root Vault path: ${root_vault_path} (already validated, files transposed into 01_llm_zone/raw/)
+- Preferred LLM CLI: ${preferred_cli}
+
+Still missing (ask the user, ONE question at a time, then update both files):
+- Project description
+- Helpful artifact URLs or file paths (optional)
+- External source policy (default is no — confirm or change)
+
+Then execute 00_system/instructions/STARTUP.md from Phase 1.2 onwards. Specifically:
+- Translate the setup draft into filled blueprint + config
+- Build the master dictionary by reading all transposed raw copies
+- Generate YAML headers for every raw copy using the dictionary
+- Create an index.md in every folder under 01_llm_zone/raw/ that reconstructs the folder contents and summarizes each raw copy
+- Build concept indexes from repeated themes
+- Update 01_llm_zone/00_zone_index.md
+- Run the retrieval smoke test
+- Set setup_status to zone_started in both blueprint and config
+- Write the startup report to 05_agent_reports/ using 00_system/templates/STARTUP_REPORT_TEMPLATE.md
+
+Do not re-ask questions the CLI draft already answered. Do not stop after one index. Do not edit the Root Vault.
+PROMPT_EOF
+  )
 
   if copy_to_clipboard "$startup_prompt"; then
     info "Prompt copied to clipboard."

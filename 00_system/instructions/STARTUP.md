@@ -23,7 +23,7 @@ Use this file when the user asks to **start the Zone** or when setup files still
 
 Translate the protected Root Vault into the first usable **LLM Zone**: a searchable, header-indexed collection of raw copies with a shared dictionary for consistent terminology.
 
-The CLI onboarding script has already transposed accepted text-based files from the Root Vault into markdown raw copies under [[raw/]]. The Startup sub-agent's job is to:
+The CLI onboarding script has already collected project name, preferred LLM CLI, and Root Vault path, and transposed accepted text-based files from the Root Vault into markdown raw copies under [[raw/]]. The Startup sub-agent's job is to:
 
 1. **Build the master dictionary**
 2. **Generate YAML headers** for every raw copy
@@ -53,7 +53,7 @@ Read:
 4. [[RESEARCH_BLUEPRINT]]
 5. [[HEADER_TEMPLATE]]
 
-If the user already ran `bash .bin/onboard.sh`, treat its answers as the **setup draft** and complete startup without repeating questions unless a required field is missing or a risky assumption blocks indexing.
+If the user already ran `bash .bin/onboard.sh`, treat its answers as the **setup draft** (project name, Root Vault path, preferred LLM CLI) and complete startup without repeating those questions. The remaining fields — project description, helpful artifact URLs, external source policy — are also gathered by the CLI agent, not the user, one question at a time, then written into [[RESEARCH_BLUEPRINT]] and [[ZONE_CONFIGURATION]].
 
 ---
 

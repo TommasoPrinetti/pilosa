@@ -25,7 +25,7 @@ Last reviewed: 2026-06-02.
 * [x] Define startup bootstrap sequence → `STARTUP.md` (Phase 1 setup translation + Phase 2 indexing)
 * [x] On startup: copy and process headers → `STARTUP.md` Step 2.4
 * [x] On startup: load glossary + dictionaries → `STARTUP.md` Step 2.3 (multilingual dictionary)
-* [x] On startup: generate onboarding questions → `.bin/onboard.sh`
+* [x] On startup: collect name + CLI + Root Vault path → `.bin/onboard.sh` (description/URLs/policy gathered by the LLM during startup)
 * [x] Delete or archive `startup.md` after activation → [[.trash/]] directory for retired files
 * [x] Move initialization files into archive/generated folder → [[.trash/]] for retired files
 * [x] Install/setup required services automatically during onboarding → pure bash, zero deps
