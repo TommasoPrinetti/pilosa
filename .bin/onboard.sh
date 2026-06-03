@@ -14,16 +14,20 @@ ROOT="$(pwd)"
 TODAY="$(date +%Y-%m-%d)"
 FORCE="0"
 
-Blueprint="$ROOT/02_user_zone/RESEARCH_BLUEPRINT.md"
+Informations="$ROOT/INFORMATIONS.md"
 Config="$ROOT/00_system/instructions/ZONE_CONFIGURATION.md"
 Agents="$ROOT/AGENTS.md"
 Claude="$ROOT/CLAUDE.md"
-Aggregator="$ROOT/03_logs/research_tendencies/RESEARCH_NEED_AGGREGATOR.md"
-AggregatorTemplate="$ROOT/03_logs/research_tendencies/RESEARCH_NEED_AGGREGATOR_TEMPLATE.md"
 RawDir="$ROOT/01_llm_zone/raw"
 
-# text-based extensions to copy from Root Vault
-TEXT_EXTENSIONS="md|txt|rtf|csv|json|yaml|yml|toml|xml|html|css|js|ts|py|rb|sh|log|ini|cfg|conf|tex|bib|org|adoc|rst|wiki|mediawiki|asciidoc|textile|dokuwiki|pmwiki|tiddlywiki|opml|outliner|workflowy|dynalist|logseq|roam|obsidian"
+# text-based extensions — renamed to .md (lossless conversion)
+MARKDOWN_EXTENSIONS="txt|rtf|textile|wiki|mediawiki|dokuwiki|pmwiki|outliner|workflowy|dynalist"
+
+# text-based extensions — copied unchanged (LLMs read natively)
+NATIVE_EXTENSIONS="md|csv|json|yaml|yml|toml|xml|html|css|js|ts|py|rb|sh|log|ini|cfg|conf|tex|bib|org|adoc|rst|tiddlywiki|logseq|roam|obsidian"
+
+# binary extensions — copied as-is (not pointer records)
+BINARY_COPYABLE_EXTENSIONS="pdf"
 
 divider()   { printf '%s\n' "${DIM}$(printf '%.0s─' 1 {1..78})${RESET}"; }
 header()    { printf '\n%s\n\n' "${BOLD}${C}$1${RESET}"; }
@@ -303,7 +307,7 @@ copy_to_clipboard() {
   return 1
 }
 
-sanitize_yaml() { echo "$1" | tr '"' "'" | tr '\n' ' '; }
+sanitize_yaml() { printf '%s' "$1" | tr '"' "'" | tr '\n' ' '; }
 
 normalize_path_input() {
   local value="$1"
@@ -324,7 +328,7 @@ should_skip_source_file() {
   esac
 }
 
-is_text_source_file() {
+is_markdown_convertible_file() {
   local path="$1"
   local name ext
   name="$(basename "$path")"
@@ -333,7 +337,37 @@ is_text_source_file() {
   ext="${name##*.}"
   ext="$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')"
 
-  case "|$TEXT_EXTENSIONS|" in
+  case "|$MARKDOWN_EXTENSIONS|" in
+    *"|$ext|"*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+is_native_readable_file() {
+  local path="$1"
+  local name ext
+  name="$(basename "$path")"
+
+  [[ "$name" == *.* ]] || return 1
+  ext="${name##*.}"
+  ext="$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')"
+
+  case "|$NATIVE_EXTENSIONS|" in
+    *"|$ext|"*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+is_binary_copyable_file() {
+  local path="$1"
+  local name ext
+  name="$(basename "$path")"
+
+  [[ "$name" == *.* ]] || return 1
+  ext="${name##*.}"
+  ext="$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')"
+
+  case "|$BINARY_COPYABLE_EXTENSIONS|" in
     *"|$ext|"*) return 0 ;;
     *) return 1 ;;
   esac
@@ -359,6 +393,108 @@ markdown_raw_rel_path() {
   else
     echo "${dir}/${stem}__${ext}.md"
   fi
+}
+
+native_raw_rel_path() {
+  local rel_path="$1"
+  echo "$rel_path"
+}
+
+pointer_raw_rel_path() {
+  local rel_path="$1"
+  local name dir stem ext
+  name="$(basename "$rel_path")"
+  dir="$(dirname "$rel_path")"
+
+  if [[ "$name" == *.* ]]; then
+    ext="${name##*.}"
+    ext="$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')"
+    stem="${name%.*}"
+  else
+    ext="unknown"
+    stem="$name"
+  fi
+
+  if [[ "$dir" == "." ]]; then
+    echo "${stem}__${ext}.pointer.md"
+  else
+    echo "${dir}/${stem}__${ext}.pointer.md"
+  fi
+}
+
+source_class_media_type() {
+  case "$1" in
+    image) echo "image" ;;
+    video) echo "video" ;;
+    audio) echo "audio" ;;
+    pdf) echo "pdf" ;;
+    unknown) echo "unknown" ;;
+    *) echo "text" ;;
+  esac
+}
+
+file_extension() {
+  local path="$1" name ext
+  name="$(basename "$path")"
+  if [[ "$name" == *.* ]]; then
+    ext="${name##*.}"
+    printf '%s' "$ext" | tr '[:upper:]' '[:lower:]'
+  else
+    printf 'unknown'
+  fi
+}
+
+write_pointer_record() {
+  local src_file="$1" dest_file="$2" vault_path="$3" class="$4"
+  local rel_path ext media_type size safe_source safe_rel
+  rel_path="${src_file#"$vault_path"/}"
+  ext="$(file_extension "$src_file")"
+  media_type="$(source_class_media_type "$class")"
+  size="$(file_size_bytes "$src_file")"
+  safe_source="$(sanitize_yaml "$src_file")"
+  safe_rel="$(sanitize_yaml "$rel_path")"
+
+  cat > "$dest_file" << POINTER_EOF
+---
+type: source_pointer
+role: pointer_only_source_record
+purpose: [make a non-text Root Vault source findable without copying the original media]
+scope: single_source_file
+source: "$safe_source"
+root_rel_path: "$safe_rel"
+media_type: "$media_type"
+extension: "$ext"
+size_bytes: $size
+processing_status: pointer_only_pending
+ocr_status: pending
+asr_status: pending
+transcription_status: pending
+image_analysis_status: pending
+generated_by: onboarding_cli
+generated_at: $TODAY
+created: $TODAY
+updated: $TODAY
+---
+
+# Source Pointer — $rel_path
+
+This pointer record makes the original Root Vault file retrievable without copying or editing the media file.
+
+| Field | Value |
+|---|---|
+| Original source | $src_file |
+| Root-relative path | $rel_path |
+| Media type | $media_type |
+| Extension | $ext |
+| Size bytes | $size |
+| Processing status | pointer_only_pending |
+
+## Pending Processing
+- OCR: pending
+- ASR: pending
+- Transcription: pending
+- Image analysis: pending
+POINTER_EOF
 }
 
 render_copy_progress() {
@@ -407,60 +543,232 @@ plural_count() {
   fi
 }
 
-print_transposition_summary() {
-  local dest_dir="$1" copied="$2" skipped="$3" text_count="$4" binary_count="$5" ignored_count="$6"
-
-  printf '\n  %s┌─%s %sTransposition complete%s\n' "${DIM}" "${RESET}" "${BOLD}" "${RESET}"
-  printf '  %s│%s %s✓%s %s written\n' "${DIM}" "${RESET}" "${G}" "${RESET}" "$(plural_count "$copied" "markdown raw copy" "markdown raw copies")"
-  if [[ "$skipped" -gt 0 ]]; then
-    printf '  %s│%s %s↷%s %s already existed\n' "${DIM}" "${RESET}" "${Y}" "${RESET}" "$(plural_count "$skipped" "markdown raw copy" "markdown raw copies")"
+file_size_bytes() {
+  local path="$1"
+  if stat -c %s "$path" >/dev/null 2>&1; then
+    stat -c %s "$path"
+  elif stat -f %z "$path" >/dev/null 2>&1; then
+    stat -f %z "$path"
+  else
+    printf '0'
   fi
-  printf '  %s│%s %s◇%s %s processed\n' "${DIM}" "${RESET}" "${C}" "${RESET}" "$(plural_count "$text_count" "transposable file")"
-  if [[ "$binary_count" -gt 0 ]]; then
-    printf '  %s│%s %s•%s %s left untouched\n' "${DIM}" "${RESET}" "${DIM}" "${RESET}" "$(plural_count "$binary_count" "non-text file")"
-  fi
-  if [[ "$ignored_count" -gt 0 ]]; then
-    printf '  %s│%s %s•%s %s skipped\n' "${DIM}" "${RESET}" "${DIM}" "${RESET}" "$(plural_count "$ignored_count" "ignored file")"
-  fi
-  printf '  %s└─%s Raw copies: %s%s%s\n' "${DIM}" "${RESET}" "${C}${BOLD}" "$dest_dir" "${RESET}"
 }
 
-# ── transpose root vault text files into markdown raw copies ────────────────
+format_bytes() {
+  local bytes="$1"
+  if [[ "$bytes" -ge 1073741824 ]]; then
+    printf '%d.%02d GB' $((bytes / 1073741824)) $(((bytes % 1073741824) * 100 / 1073741824))
+  elif [[ "$bytes" -ge 1048576 ]]; then
+    printf '%d.%02d MB' $((bytes / 1048576)) $(((bytes % 1048576) * 100 / 1048576))
+  elif [[ "$bytes" -ge 1024 ]]; then
+    printf '%d.%02d KB' $((bytes / 1024)) $(((bytes % 1024) * 100 / 1024))
+  else
+    printf '%d B' "$bytes"
+  fi
+}
+
+classify_source_file() {
+  local path="$1"
+  local name ext
+
+  if should_skip_source_file "$path"; then
+    echo "ignored"
+    return
+  fi
+
+  if is_markdown_convertible_file "$path"; then
+    echo "markdown"
+    return
+  fi
+
+  if is_native_readable_file "$path"; then
+    echo "native"
+    return
+  fi
+
+  if is_binary_copyable_file "$path"; then
+    echo "binary_copyable"
+    return
+  fi
+
+  name="$(basename "$path")"
+  if [[ "$name" == *.* ]]; then
+    ext="${name##*.}"
+    ext="$(printf '%s' "$ext" | tr '[:upper:]' '[:lower:]')"
+  else
+    ext=""
+  fi
+
+  case "$ext" in
+    jpg|jpeg|png|gif|webp|heic|heif|tif|tiff|bmp|svg) echo "image" ;;
+    mp4|mov|m4v|avi|mkv|webm|wmv) echo "video" ;;
+    mp3|wav|m4a|aac|flac|ogg|opus|aiff) echo "audio" ;;
+    *) echo "unknown" ;;
+  esac
+}
+
+scan_root_vault() {
+  local vault_path="$1"
+  SCAN_TOTAL_COUNT=0
+  SCAN_MARKDOWN_COUNT=0
+  SCAN_NATIVE_COUNT=0
+  SCAN_BINARY_COPYABLE_COUNT=0
+  SCAN_IMAGE_COUNT=0
+  SCAN_VIDEO_COUNT=0
+  SCAN_AUDIO_COUNT=0
+  SCAN_UNKNOWN_COUNT=0
+  SCAN_IGNORED_COUNT=0
+  SCAN_MARKDOWN_BYTES=0
+  SCAN_NATIVE_BYTES=0
+  SCAN_BINARY_COPYABLE_BYTES=0
+  SCAN_IMAGE_BYTES=0
+  SCAN_VIDEO_BYTES=0
+  SCAN_AUDIO_BYTES=0
+  SCAN_UNKNOWN_BYTES=0
+
+  printf '\n  %sScanning Root Vault before writing raw copies...%s\n' "${DIM}" "${RESET}"
+
+  local f class size
+  while IFS= read -r -d '' f; do
+    class="$(classify_source_file "$f")"
+    if [[ "$class" != "ignored" ]]; then
+      SCAN_TOTAL_COUNT=$((SCAN_TOTAL_COUNT + 1))
+      size="$(file_size_bytes "$f")"
+    else
+      size=0
+    fi
+
+    case "$class" in
+      markdown)
+        SCAN_MARKDOWN_COUNT=$((SCAN_MARKDOWN_COUNT + 1))
+        SCAN_MARKDOWN_BYTES=$((SCAN_MARKDOWN_BYTES + size))
+        ;;
+      native)
+        SCAN_NATIVE_COUNT=$((SCAN_NATIVE_COUNT + 1))
+        SCAN_NATIVE_BYTES=$((SCAN_NATIVE_BYTES + size))
+        ;;
+      binary_copyable)
+        SCAN_BINARY_COPYABLE_COUNT=$((SCAN_BINARY_COPYABLE_COUNT + 1))
+        SCAN_BINARY_COPYABLE_BYTES=$((SCAN_BINARY_COPYABLE_BYTES + size))
+        ;;
+      image)
+        SCAN_IMAGE_COUNT=$((SCAN_IMAGE_COUNT + 1))
+        SCAN_IMAGE_BYTES=$((SCAN_IMAGE_BYTES + size))
+        ;;
+      video)
+        SCAN_VIDEO_COUNT=$((SCAN_VIDEO_COUNT + 1))
+        SCAN_VIDEO_BYTES=$((SCAN_VIDEO_BYTES + size))
+        ;;
+      audio)
+        SCAN_AUDIO_COUNT=$((SCAN_AUDIO_COUNT + 1))
+        SCAN_AUDIO_BYTES=$((SCAN_AUDIO_BYTES + size))
+        ;;
+      unknown)
+        SCAN_UNKNOWN_COUNT=$((SCAN_UNKNOWN_COUNT + 1))
+        SCAN_UNKNOWN_BYTES=$((SCAN_UNKNOWN_BYTES + size))
+        ;;
+      ignored)
+        SCAN_IGNORED_COUNT=$((SCAN_IGNORED_COUNT + 1))
+        ;;
+    esac
+  done < <(find "$vault_path" -type f -print0 2>/dev/null)
+}
+
+print_scan_summary() {
+  printf '  %s✓%s Root Vault scan complete\n' "${G}" "${RESET}"
+  if [[ "$SCAN_MARKDOWN_COUNT" -gt 0 ]]; then
+    printf '  %s├─%s %s to rename to .md\n' "${DIM}" "${RESET}" "$(plural_count "$SCAN_MARKDOWN_COUNT" "text-based file")"
+    printf '  %s│ %s%s%s\n' "${DIM}" "${RESET}" "$(format_bytes "$SCAN_MARKDOWN_BYTES")" "${DIM} text-like data${RESET}"
+  fi
+  if [[ "$SCAN_NATIVE_COUNT" -gt 0 ]]; then
+    printf '  %s├─%s %s to copy unchanged\n' "${DIM}" "${RESET}" "$(plural_count "$SCAN_NATIVE_COUNT" "native-readable file")"
+    printf '  %s│ %s%s%s\n' "${DIM}" "${RESET}" "$(format_bytes "$SCAN_NATIVE_BYTES")" "${DIM} native data${RESET}"
+  fi
+  if [[ "$SCAN_BINARY_COPYABLE_COUNT" -gt 0 ]]; then
+    printf '  %s├─%s %s to copy as-is\n' "${DIM}" "${RESET}" "$(plural_count "$SCAN_BINARY_COPYABLE_COUNT" "PDF")"
+    printf '  %s│ %s%s%s\n' "${DIM}" "${RESET}" "$(format_bytes "$SCAN_BINARY_COPYABLE_BYTES")" "${DIM} PDF data${RESET}"
+  fi
+  if [[ "$SCAN_IMAGE_COUNT" -gt 0 ]]; then
+    printf '  %s├─%s %s pointer-only\n' "${DIM}" "${RESET}" "$(plural_count "$SCAN_IMAGE_COUNT" "image")"
+    printf '  %s│ %s%s%s\n' "${DIM}" "${RESET}" "$(format_bytes "$SCAN_IMAGE_BYTES")" "${DIM} image data${RESET}"
+  fi
+  if [[ "$SCAN_VIDEO_COUNT" -gt 0 ]]; then
+    printf '  %s├─%s %s pointer-only\n' "${DIM}" "${RESET}" "$(plural_count "$SCAN_VIDEO_COUNT" "video")"
+    printf '  %s│ %s%s%s\n' "${DIM}" "${RESET}" "$(format_bytes "$SCAN_VIDEO_BYTES")" "${DIM} video data${RESET}"
+  fi
+  if [[ "$SCAN_AUDIO_COUNT" -gt 0 ]]; then
+    printf '  %s├─%s %s pointer-only\n' "${DIM}" "${RESET}" "$(plural_count "$SCAN_AUDIO_COUNT" "audio file")"
+    printf '  %s│ %s%s%s\n' "${DIM}" "${RESET}" "$(format_bytes "$SCAN_AUDIO_BYTES")" "${DIM} audio data${RESET}"
+  fi
+  if [[ "$SCAN_UNKNOWN_COUNT" -gt 0 ]]; then
+    printf '  %s├─%s %s unsupported or unknown\n' "${DIM}" "${RESET}" "$(plural_count "$SCAN_UNKNOWN_COUNT" "file")"
+    printf '  %s│ %s%s%s\n' "${DIM}" "${RESET}" "$(format_bytes "$SCAN_UNKNOWN_BYTES")" "${DIM} unknown data${RESET}"
+  fi
+  printf '  %s└─%s %s ignored\n' "${DIM}" "${RESET}" "$(plural_count "$SCAN_IGNORED_COUNT" "file")"
+  note "Text-like files are renamed to .md; native-readable files keep their extension; PDFs are copied as-is; unsupported media gets pointer records."
+  note "Startup later builds detailed Obsidian-wikilink maps in 01_llm_zone/maps/."
+}
+
+print_transposition_summary() {
+  local dest_dir="$1" copied="$2" skipped="$3" native_copied="$4" native_skipped="$5" binary_copied="$6" binary_skipped="$7" pointer_count="$8" pointer_skipped="$9"
+
+  printf '\n  %s┌─%s %sTransposition complete%s\n' "${DIM}" "${RESET}" "${BOLD}" "${RESET}"
+  printf '  %s│%s %s✓%s %s written (renamed to .md)\n' "${DIM}" "${RESET}" "${G}" "${RESET}" "$(plural_count "$copied" "markdown-convertible file")"
+  if [[ "$skipped" -gt 0 ]]; then
+    printf '  %s│%s %s↷%s %s already existed\n' "${DIM}" "${RESET}" "${Y}" "${RESET}" "$(plural_count "$skipped" "markdown-convertible file")"
+  fi
+  if [[ "$native_copied" -gt 0 ]]; then
+    printf '  %s│%s %s✓%s %s written (unchanged)\n' "${DIM}" "${RESET}" "${G}" "${RESET}" "$(plural_count "$native_copied" "native-readable file")"
+  fi
+  if [[ "$native_skipped" -gt 0 ]]; then
+    printf '  %s│%s %s↷%s %s already existed\n' "${DIM}" "${RESET}" "${Y}" "${RESET}" "$(plural_count "$native_skipped" "native-readable file")"
+  fi
+  if [[ "$binary_copied" -gt 0 ]]; then
+    printf '  %s│%s %s✓%s %s written (as-is)\n' "${DIM}" "${RESET}" "${G}" "${RESET}" "$(plural_count "$binary_copied" "PDF")"
+  fi
+  if [[ "$binary_skipped" -gt 0 ]]; then
+    printf '  %s│%s %s↷%s %s already existed\n' "${DIM}" "${RESET}" "${Y}" "${RESET}" "$(plural_count "$binary_skipped" "PDF")"
+  fi
+  if [[ "$pointer_count" -gt 0 ]]; then
+    printf '  %s│%s %s✓%s %s written\n' "${DIM}" "${RESET}" "${G}" "${RESET}" "$(plural_count "$pointer_count" "pointer record")"
+  fi
+  if [[ "$pointer_skipped" -gt 0 ]]; then
+    printf '  %s│%s %s↷%s %s already existed\n' "${DIM}" "${RESET}" "${Y}" "${RESET}" "$(plural_count "$pointer_skipped" "pointer record")"
+  fi
+  if [[ "$SCAN_IGNORED_COUNT" -gt 0 ]]; then
+    printf '  %s│%s %s•%s %s skipped\n' "${DIM}" "${RESET}" "${DIM}" "${RESET}" "$(plural_count "$SCAN_IGNORED_COUNT" "ignored file")"
+  fi
+  printf '  %s└─%s Raw corpus records: %s%s%s\n' "${DIM}" "${RESET}" "${C}${BOLD}" "$dest_dir" "${RESET}"
+}
+
+# ── transpose Root Vault files into raw copies ─────────────────────────────
 copy_root_vault() {
   local vault_path="$1"
   local dest_dir="$2"
 
-  printf '\n  %sScanning Root Vault for text-based files that can become markdown raw copies...%s\n' "${DIM}" "${RESET}"
-
-  local file_count=0 binary_count=0 ignored_count=0
-  while IFS= read -r -d '' f; do
-    if should_skip_source_file "$f"; then
-      ignored_count=$((ignored_count + 1))
-    elif is_text_source_file "$f"; then
-      file_count=$((file_count + 1))
-    else
-      binary_count=$((binary_count + 1))
-    fi
-  done < <(find "$vault_path" -type f -print0 2>/dev/null)
-
-  printf '  %s✓%s Root Vault scan complete\n' "${G}" "${RESET}"
-  printf '  %s├─%s %s ready for markdown\n' "${DIM}" "${RESET}" "$(plural_count "$file_count" "text-based file")"
-  printf '  %s├─%s %s left untouched\n' "${DIM}" "${RESET}" "$(plural_count "$binary_count" "non-text file")"
-  printf '  %s└─%s %s skipped\n' "${DIM}" "${RESET}" "$(plural_count "$ignored_count" "ignored file")"
-
-  if [[ "$file_count" -eq 0 ]]; then
-    warn "No text-based files found in Root Vault."
+  local total_files=$(( SCAN_MARKDOWN_COUNT + SCAN_NATIVE_COUNT + SCAN_BINARY_COPYABLE_COUNT ))
+  if [[ "$total_files" -eq 0 ]]; then
+    warn "No copyable files found in Root Vault."
     return 1
   fi
 
-  printf '  %s→%s Starting transposition of %s\n' "${DIM}" "${RESET}" "$(plural_count "$file_count" "text-based file")"
-  render_copy_progress 0 "$file_count" 0 0
+  local pointer_total=$(( SCAN_IMAGE_COUNT + SCAN_VIDEO_COUNT + SCAN_AUDIO_COUNT + SCAN_UNKNOWN_COUNT ))
+  printf '  %s→%s Starting transposition of %s (%s + %s + %s + %s pointer records)\n' \
+    "${DIM}" "${RESET}" \
+    "$(plural_count "$total_files" "file")" \
+    "$(plural_count "$SCAN_MARKDOWN_COUNT" "markdown-convertible")" \
+    "$(plural_count "$SCAN_NATIVE_COUNT" "native-readable")" \
+    "$(plural_count "$SCAN_BINARY_COPYABLE_COUNT" "PDF")" \
+    "$(plural_count "$pointer_total" "pointer record")"
+  render_copy_progress 0 "$total_files" 0 0
 
-  local copied=0 skipped=0 processed=0
+  local copied=0 skipped=0 processed=0 pointer_count=0 pointer_skipped=0 non_text_count=0
+  local native_copied=0 native_skipped=0 binary_copied=0 binary_skipped=0
 
+  # ── loop 1: markdown-convertible files → renamed to .md ──
   while IFS= read -r -d '' src_file; do
     should_skip_source_file "$src_file" && continue
-    is_text_source_file "$src_file" || continue
+    is_markdown_convertible_file "$src_file" || continue
 
     local rel_path="${src_file#"$vault_path"/}"
     local raw_rel_path
@@ -474,28 +782,105 @@ copy_root_vault() {
     if [[ -f "$dest_file" ]]; then
       skipped=$((skipped + 1))
       processed=$((processed + 1))
-      render_copy_progress "$processed" "$file_count" "$copied" "$skipped" "$rel_path"
+      render_copy_progress "$processed" "$total_files" "$copied" "$skipped" "$rel_path"
       continue
     fi
 
     cp "$src_file" "$dest_file"
     copied=$((copied + 1))
     processed=$((processed + 1))
-    render_copy_progress "$processed" "$file_count" "$copied" "$skipped" "$rel_path"
+    render_copy_progress "$processed" "$total_files" "$copied" "$skipped" "$rel_path"
+  done < <(find "$vault_path" -type f -print0 2>/dev/null)
+
+  # ── loop 2: native-readable files → copied unchanged ──
+  while IFS= read -r -d '' src_file; do
+    should_skip_source_file "$src_file" && continue
+    is_native_readable_file "$src_file" || continue
+
+    local rel_path="${src_file#"$vault_path"/}"
+    local raw_rel_path
+    raw_rel_path="$(native_raw_rel_path "$rel_path")"
+    local dest_file="$dest_dir/$raw_rel_path"
+    local dest_parent
+    dest_parent="$(dirname "$dest_file")"
+
+    mkdir -p "$dest_parent"
+
+    if [[ -f "$dest_file" ]]; then
+      native_skipped=$((native_skipped + 1))
+      processed=$((processed + 1))
+      render_copy_progress "$processed" "$total_files" "$copied" "$skipped" "$rel_path"
+      continue
+    fi
+
+    cp "$src_file" "$dest_file"
+    native_copied=$((native_copied + 1))
+    processed=$((processed + 1))
+    render_copy_progress "$processed" "$total_files" "$copied" "$skipped" "$rel_path"
+  done < <(find "$vault_path" -type f -print0 2>/dev/null)
+
+  # ── loop 3: binary-copyable files (PDFs) → copied as-is ──
+  while IFS= read -r -d '' src_file; do
+    should_skip_source_file "$src_file" && continue
+    is_binary_copyable_file "$src_file" || continue
+
+    local rel_path="${src_file#"$vault_path"/}"
+    local raw_rel_path
+    raw_rel_path="$(native_raw_rel_path "$rel_path")"
+    local dest_file="$dest_dir/$raw_rel_path"
+    local dest_parent
+    dest_parent="$(dirname "$dest_file")"
+
+    mkdir -p "$dest_parent"
+
+    if [[ -f "$dest_file" ]]; then
+      binary_skipped=$((binary_skipped + 1))
+      processed=$((processed + 1))
+      render_copy_progress "$processed" "$total_files" "$copied" "$skipped" "$rel_path"
+      continue
+    fi
+
+    cp "$src_file" "$dest_file"
+    binary_copied=$((binary_copied + 1))
+    processed=$((processed + 1))
+    render_copy_progress "$processed" "$total_files" "$copied" "$skipped" "$rel_path"
+  done < <(find "$vault_path" -type f -print0 2>/dev/null)
+
+  # ── loop 4: images/video/audio/unknown → pointer records ──
+  local class pointer_rel_path pointer_file pointer_parent
+  while IFS= read -r -d '' src_file; do
+    should_skip_source_file "$src_file" && continue
+    class="$(classify_source_file "$src_file")"
+    [[ "$class" == "ignored" || "$class" == "markdown" || "$class" == "native" || "$class" == "binary_copyable" ]] && continue
+    non_text_count=$((non_text_count + 1))
+
+    local rel_path="${src_file#"$vault_path"/}"
+    pointer_rel_path="$(pointer_raw_rel_path "$rel_path")"
+    pointer_file="$dest_dir/$pointer_rel_path"
+    pointer_parent="$(dirname "$pointer_file")"
+    mkdir -p "$pointer_parent"
+
+    if [[ -f "$pointer_file" ]]; then
+      pointer_skipped=$((pointer_skipped + 1))
+      continue
+    fi
+
+    write_pointer_record "$src_file" "$pointer_file" "$vault_path" "$class"
+    pointer_count=$((pointer_count + 1))
   done < <(find "$vault_path" -type f -print0 2>/dev/null)
 
   printf '\n'
 
-  printf '  %s✓%s %sRoot vault transposed to%s %s%s%s\n' "${G}${BOLD}" "${RESET}" "${BOLD}" "${RESET}" "${C}${BOLD}" "${dest_dir}" "${RESET}"
-  print_transposition_summary "$dest_dir" "$copied" "$skipped" "$file_count" "$binary_count" "$ignored_count"
+  printf '  %s✓%s %sRoot Vault records written to%s %s%s%s\n' "${G}${BOLD}" "${RESET}" "${BOLD}" "${RESET}" "${C}${BOLD}" "${dest_dir}" "${RESET}"
+  print_transposition_summary "$dest_dir" "$copied" "$skipped" "$native_copied" "$native_skipped" "$binary_copied" "$binary_skipped" "$pointer_count" "$pointer_skipped"
   return 0
 }
 
 # ── overwrite check ─────────────────────────────────────────────────────────
 has_filled_setup() {
-  [[ -f "$Blueprint" && -f "$Config" ]] || return 1
+  [[ -f "$Informations" && -f "$Config" ]] || return 1
   local b c
-  b=$(<"$Blueprint")
+  b=$(<"$Informations")
   c=$(<"$Config")
   for ph in "[project name]" "[path]"; do
     [[ "$b" == *"$ph"* || "$c" == *"$ph"* ]] && return 1
@@ -525,7 +910,7 @@ main() {
         printf '    %-14s %s\n' "--force" "Overwrite existing setup data"
         printf '    %-14s %s\n' "--numbered" "Force numbered menu instead of arrow-key picker"
         printf '    %-14s %s\n' "--no-color" "Disable colored output"
-        printf '\n  %s\n' "${DIM}Collects: project name, CLI preference, Root Vault path. The rest is gathered by your LLM CLI after the handoff.${RESET}"
+        printf '\n  %s\n' "${DIM}Collects: project name and Root Vault path, scans the corpus, transposes files to raw/, then asks which LLM CLI should receive the startup handoff.${RESET}"
         return 0
         ;;
     esac
@@ -542,7 +927,7 @@ main() {
   printf '\n'
   divider
   printf '\n  %s  %s\n' "${BOLD}${C}LLM Zone${RESET}" "${DIM}Fast Setup${RESET}"
-  printf '\n  %s\n' "${DIM}Three questions. Your LLM agent gathers the rest and runs indexing.${RESET}"
+  printf '\n  %s\n' "${DIM}Project name, Root Vault path, corpus scan, consent, then LLM CLI handoff.${RESET}"
   divider
 
   if has_filled_setup && [[ "$FORCE" != "1" ]]; then
@@ -554,10 +939,10 @@ main() {
   fi
 
   # ── Question 1: project name ─────────────────────────────────────────────
-  print_step 1 3 "Project name"
+  print_step 1 4 "Project name"
   note "This is the working title for your research framework."
   note "It appears at the top of every report and in the blueprint."
-  note "You can change it later by editing 02_user_zone/RESEARCH_BLUEPRINT.md."
+  note "You can change it later by editing INFORMATIONS.md."
   project_title=""
   while [[ -z "$project_title" ]]; do
     project_title="$(ask "Project name" "" "e.g. My Research Project")"
@@ -565,17 +950,12 @@ main() {
   done
   ok "Project: ${BOLD}${project_title}${RESET}"
 
-  # ── Question 2: CLI preference ───────────────────────────────────────────
-  print_step 2 3 "Preferred LLM CLI"
-  note "Which CLI will you paste the startup prompt into?"
-  note "You can change this later; the prompt is the same shape."
-  preferred_cli="$(arrow_select "Preferred LLM CLI" "Claude Code" "Codex" "OpenCode" "Kilo" "Other")" || return 1
-  ok "CLI: ${BOLD}${preferred_cli}${RESET}"
-
-  # ── Question 3: Root Vault path ──────────────────────────────────────────
-  print_step 3 3 "Root Vault"
+  # ── Question 2: Root Vault path ──────────────────────────────────────────
+  print_step 2 4 "Root Vault"
   note "The Root Vault is the folder of your source files — PDFs, notes, transcripts, etc."
-  note "Nothing is moved or renamed. We will copy text-based files into 01_llm_zone/raw/."
+  note "Nothing in the Root Vault is moved, renamed, or edited."
+  note "Text-like files can be copied unchanged into 01_llm_zone/raw/; media gets pointer records only."
+  note "Startup will create 01_llm_zone/maps/ as the central navigation layer."
   note "Use an absolute path (drag the folder onto the terminal to paste its path)."
   root_vault_path=""
   while [[ -z "$root_vault_path" ]]; do
@@ -590,19 +970,42 @@ main() {
   fi
   ok "Root Vault: ${BOLD}${root_vault_path}${RESET}"
 
-  # transpose accepted text-based files into markdown raw copies
+  # scan before any raw files are written
+  print_step 3 4 "Corpus scan and consent"
+  scan_root_vault "$root_vault_path"
+  print_scan_summary
+
+  local copyable_count=$(( SCAN_MARKDOWN_COUNT + SCAN_NATIVE_COUNT + SCAN_BINARY_COPYABLE_COUNT ))
+  if [[ "$copyable_count" -eq 0 ]]; then
+    warn "No copyable files found in Root Vault."
+    return 1
+  fi
+
+  if ! confirm "  Write raw copies and media pointer records into 01_llm_zone/raw/?" "y"; then
+    printf '\n  %s\n\n' "${DIM}No raw copies were written. Onboarding stopped after the scan.${RESET}"
+    return 0
+  fi
+
+  # transpose accepted files into raw copies
   printf '\n'
   copy_root_vault "$root_vault_path" "$RawDir"
   printf '\n'
 
+  # ── Question 4: CLI preference ───────────────────────────────────────────
+  print_step 4 4 "Startup handoff"
+  note "Choose the CLI that should receive the startup prompt."
+  note "You can change this later; the prompt is the same shape."
+  preferred_cli="$(arrow_select "Preferred LLM CLI" "Claude Code" "Codex" "OpenCode" "Kilo" "Other")" || return 1
+  ok "CLI: ${BOLD}${preferred_cli}${RESET}"
+
   # ── ensure directories exist ──────────────────────────────────────────────
-  mkdir -p "$(dirname "$Blueprint")"
+  mkdir -p "$(dirname "$Informations")"
   mkdir -p "$(dirname "$Config")"
 
-  # ── write blueprint ───────────────────────────────────────────────────────
-  cat > "$Blueprint" << BLUEPRINT_EOF
+  # ── write informations ─────────────────────────────────────────────────────
+  cat > "$Informations" << INFORMATIONS_EOF
 ---
-type: research_blueprint
+type: informations
 agent: setup_cli
 created: $TODAY
 updated: $TODAY
@@ -614,7 +1017,7 @@ connects_to:
   - 03_logs/user_requests.md
 ---
 
-# Research Blueprint
+# INFORMATIONS
 
 ## Project
 - Title: ${project_title:-[project name]}
@@ -642,7 +1045,7 @@ connects_to:
 - External source policy: no (default; ask only if external access is needed)
 
 ## Outputs
-- Start with folder mirror indexes and evidence-grounded answers unless the researcher requests another output.
+- Start with central maps in 01_llm_zone/maps/ and evidence-grounded answers unless the researcher requests another output.
 
 ## Blind Spots
 - [identified during startup]
@@ -652,7 +1055,7 @@ connects_to:
 
 ## Preferred LLM CLI
 $preferred_cli
-BLUEPRINT_EOF
+INFORMATIONS_EOF
 
   # ── write config ──────────────────────────────────────────────────────────
   local safe_vault
@@ -678,6 +1081,8 @@ root_vault_path: "$safe_vault"
 root_vault_mode: protected_append_only
 
 source_policy: internal_first
+active_corpus_path: 01_llm_zone/raw/
+active_corpus_policy: raw_zone_first_after_onboarding
 external_sources_allowed: no
 external_logs:
   - 03_logs/external_queries.md
@@ -688,7 +1093,7 @@ l2_policy: checker_required
 
 protected_paths:
   - "$safe_vault"
-  - 02_user_zone/
+  - INFORMATIONS.md
 
 stale_after_days: 30
 preferred_llm_cli: "$preferred_cli"
@@ -696,19 +1101,12 @@ preferred_llm_cli: "$preferred_cli"
 
 ## Notes
 - This file was initialized by the CLI fast setup.
-- The CLI collected: project name, Root Vault path, preferred LLM CLI. Raw copies are transposed into 01_llm_zone/raw/ under the same path.
-- During startup, project description and helpful artifact URLs are optional. If absent, the LLM CLI agent records them as not provided, keeps external_sources_allowed at its default `no`, and infers working scope from the raw corpus.
-- When setup_status reaches zone_started, the Startup sub-agent has built the master dictionary, generated YAML headers, created folder index.md files, and built concept indexes.
+- The CLI collected: project name, Root Vault path, and preferred LLM CLI. It scanned the Root Vault, transposed accepted files into 01_llm_zone/raw/, and created source pointer records for images/video/audio.
+- After onboarding, the Root Vault remains immutable original storage. Normal source-grounded work starts from 01_llm_zone/raw/.
+- During startup, project description and helpful artifact URLs are optional. If absent, the LLM CLI agent records them as not provided, keeps external_sources_allowed at its default \`no\`, and infers working scope from the raw corpus.
+- When setup_status reaches zone_started, the startup workflow has built the master dictionary, generated YAML headers, created detailed maps in 01_llm_zone/maps/, and passed validation.
 - This file never grants permission to edit the Root Vault.
 CONFIG_EOF
-
-  # ── create aggregator if missing ──────────────────────────────────────────
-  local agg_created="no"
-  if [[ ! -f "$Aggregator" && -f "$AggregatorTemplate" ]]; then
-    sed "s/created: \[date\]/created: $TODAY/; s/updated: \[date\]/updated: $TODAY/" \
-      "$AggregatorTemplate" > "$Aggregator"
-    agg_created="yes"
-  fi
 
   # ── create CLAUDE.md if preferred CLI is Claude Code ──────────────────────
   local claude_created="no"
@@ -721,9 +1119,8 @@ CONFIG_EOF
   printf '\n'
   divider
   printf '\n  %s\n\n' "${G}${BOLD}✦ Setup files written${RESET}"
-  printf '  %s %s\n' "${DIM}─${RESET}" "${C}${Blueprint}${RESET}"
+  printf '  %s %s\n' "${DIM}─${RESET}" "${C}${Informations}${RESET}"
   printf '  %s %s\n' "${DIM}─${RESET}" "${C}${Config}${RESET}"
-  [[ "$agg_created" == "yes" ]] && printf '  %s %s\n' "${DIM}─${RESET}" "${C}${Aggregator}${RESET}"
   [[ "$claude_created" == "yes" ]] && printf '  %s %s\n' "${DIM}─${RESET}" "${C}${Claude}${RESET}"
 
   printf '\n  %s\n\n' "${BOLD}Next:${RESET}"
@@ -735,13 +1132,12 @@ This is the LLM Zone startup handoff. The user has completed fast CLI setup.
 Read these files first, in this order:
 1. AGENTS.md
 2. 00_system/instructions/ZONE_CONFIGURATION.md
-3. 02_user_zone/RESEARCH_BLUEPRINT.md
+3. INFORMATIONS.md
 4. 00_system/instructions/STARTUP.md
-5. 00_system/sub_agents/startup/SOUL.md
 
 The setup draft already contains:
 - Project name: ${project_title}
-- Root Vault path: ${root_vault_path} (already validated, files transposed into 01_llm_zone/raw/)
+- Root Vault path: ${root_vault_path} (already validated, files transposed to 01_llm_zone/raw/, pointer records created for images/video/audio)
 - Preferred LLM CLI: ${preferred_cli}
 
 Optional context not collected by fast setup:
@@ -750,15 +1146,16 @@ Optional context not collected by fast setup:
 - External source policy defaults to no; ask only if external URL access is needed or the user requests external sources.
 
 Then execute 00_system/instructions/STARTUP.md from Phase 1.2 onwards. Specifically:
-- Translate the setup draft into filled blueprint + config
-- Build the master dictionary by reading all transposed raw copies
+- Translate the setup draft into filled INFORMATIONS + config
+- Build the master dictionary by reading the active raw corpus in 01_llm_zone/raw/
 - Generate YAML headers for every raw copy using the dictionary
-- Create an index.md in every folder under 01_llm_zone/raw/ that reconstructs the folder contents and summarizes each raw copy
-- Build concept indexes from repeated themes
+- Account for source pointer records as pointer-only media
+- Create 01_llm_zone/maps/ and write detailed Obsidian-wikilink maps that help future LLMs choose which raw files to open
+- Build concept maps from repeated themes
 - Update 01_llm_zone/00_zone_index.md
-- Run the retrieval smoke test
-- Set setup_status to zone_started in both blueprint and config
-- Write the startup report to 05_agent_reports/ using 00_system/templates/STARTUP_REPORT_TEMPLATE.md
+- Run startup validation, then the full retrieval test suite
+- Set setup_status to zone_started in both INFORMATIONS and ZONE_CONFIGURATION
+- Write the startup report to 05_agent_reports/
 
 Do not re-ask questions the CLI draft already answered. Do not stop after one index. Do not edit the Root Vault.
 PROMPT_EOF

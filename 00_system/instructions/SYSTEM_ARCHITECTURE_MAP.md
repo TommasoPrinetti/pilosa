@@ -6,12 +6,13 @@ scope: [repo-wide architecture]
 connects_to:
   - AGENTS.md
   - 00_system/instructions/STARTUP.md
-  - 00_system/sub_agents/conceptualizer/SOUL.md
-  - 00_system/sub_agents/navigator/SOUL.md
-  - 00_system/sub_agents/packer/SOUL.md
-  - 00_system/sub_agents/checker/SOUL.md
-  - 00_system/sub_agents/cleaner/SOUL.md
-  - 00_system/sub_agents/startup/SOUL.md
+  - .agents/skills/zone-startup/SKILL.md
+  - .agents/skills/source-intake/SKILL.md
+  - .agents/skills/report-writing/SKILL.md
+  - .agents/skills/claim-verification/SKILL.md
+  - .agents/skills/zone-cleanup/SKILL.md
+  - .agents/skills/orchestrator-dispatch/SKILL.md
+  - 00_system/instructions/STARTUP.md
   - 01_llm_zone/00_zone_index.md
 created: 2026-05-26
 updated: 2026-06-02
@@ -28,12 +29,12 @@ Root Vault
   read-only original sources
   canonical evidence layer
         |
-        | CLI transposes text-based files to .md raw copies,
-        | agent builds dictionary, headers, and folder indexes
+        | CLI copies text-like files unchanged into raw/,
+        | agent builds dictionary, headers, and central maps
         v
 LLM Zone
   writable indexed collection
-  raw copies with YAML headers, dictionary, concept indexes, logs, reports
+  raw copies with YAML headers, source pointer records, central maps, dictionary, concept maps, logs, reports
         |
         | prompt pipeline searches here first for token economy
         v
@@ -59,7 +60,7 @@ Classify
 Choose sequence (default shapes; orchestrator may deviate)
   |
   v
-Dispatch sub-agents — inject only ## Core Contract, route Detail on demand
+Dispatch sub-agents — inject SKILL.md content into task prompt
   |
   v
 Final answer
@@ -73,23 +74,23 @@ The home session is the orchestrator. It is governed by `AGENTS.md` and controls
 |---|---|---|---|
 | 0 | Home session | Log request, choose route, dispatch sub-agents, enforce stop conditions | Fast-path answer or routed sequence |
 | 1 | Conceptualizer | Translate request into search concepts, keywords, route shape | Search brief |
-| 2 | Navigator | Search LLM Zone first, Root Vault only when needed | Raw evidence packet |
+| 2 | Navigator | Search the active raw corpus first; use Root Vault directly only for pointer-only accounting or approved recovery | Raw evidence packet |
 | 3 | Packer | Build coherent report answering the original request | ONE clean report in [[05_agent_reports/]] |
 | 4 | Checker | Verify quotes, claims, paths, indexes | Verification status, in-place corrections |
 | 5 | Cleaner | Audit repo hygiene, propose archival moves, evaluate staleness | Cleaner Report with user-confirmation gate |
-| 6 | Startup | Execute setup translation + indexing to create the first usable LLM Zone | Configuration, dictionary, headers, folder indexes, concept indexes, startup report |
+| 6 | Startup | Execute setup translation + mapping to create the first usable LLM Zone | Configuration, dictionary, headers, central maps, concept maps, startup report |
 
-The **Checker** can run alone for verification, source-path repair, or index maintenance. The **Cleaner** runs on-demand for hygiene audits. The **Startup** sub-agent runs when the user asks to start the Zone or setup files contain placeholders. Routing decisions and default route shapes live in `AGENTS.md`; sub-agent contracts live in `[[00_system/]]sub_agents/<name>/SOUL.md`.
+The **Checker** can run alone for verification, source-path repair, or index maintenance. The **Cleaner** runs on-demand for hygiene audits. The **Startup** skill runs when the user asks to start the Zone or setup files contain placeholders. Routing decisions and default route shapes live in `AGENTS.md`; sub-agent workflows are defined in `.agents/skills/<name>/SKILL.md`.
 
 ## Setup Lifecycle
 
-Initial setup creates the translation layer between Root Vault and LLM Zone. The **Startup** sub-agent executes the protocol in [[STARTUP]], which has two phases:
+Initial setup creates the translation layer between Root Vault and LLM Zone. The **startup** skill executes the protocol in [[STARTUP]], which has two phases:
 
 ```txt
 Setup draft / user startup prompt
   |
   v
-Startup sub-agent receives brief
+Orchestrator reads [[STARTUP]] protocol
   |
   v
 Phase 1 — Setup Translation
@@ -97,19 +98,19 @@ Phase 1 — Setup Translation
   audit translation
   |
   v
-CLI transposes accepted text-based files to .md raw copies in [[raw/]]
+CLI copies accepted text-like files unchanged into [[raw/]]
   |
   v
 Phase 2 — Indexing
   agent builds master dictionary
   agent generates YAML headers for all raw copies
-  agent creates index.md in every raw folder (canonical structure map)
+  agent creates maps/*.md with detailed wikilink retrieval summaries
   disambiguate with user (via orchestrator) if needed
-  build concept indexes from repeated themes
+  build concept maps from repeated themes
   update master index
   |
   v
-Run smoke test
+Run validation and retrieval tests
   |
   v
 Mark setup_status: zone_started
@@ -130,26 +131,25 @@ The setup output is not a final interpretation of the research corpus. It is the
 
 ## Active Files
 
-| File | Role |
-|---|---|
-| `AGENTS.md` | Orchestrator playbook — single routing file |
-| [[STARTUP]] | Setup translation + indexing protocol (read by Startup) |
-| [[ZONE_CONFIGURATION]] | Operating profile |
-| [[SYSTEM_ARCHITECTURE_MAP]] | This file — diagrams |
-| [[OBSIDIAN_CONSTRAINTS]] | Markdown rules |
-| [[conceptualizer|SOUL]] | Conceptualizer contract |
-| [[navigator|SOUL]] | Navigator contract (owns canonical search order) |
-| [[packer|SOUL]] | Packer contract |
-| [[checker|SOUL]] | Checker contract |
-| [[cleaner|SOUL]] | Cleaner contract |
-| [[startup|SOUL]] | Startup contract |
-| [[dictionary]] | Shared term vocabulary |
-| [[zone_index]] | Master index |
-| [[raw/]] | Markdown raw copies with folder `index.md` retrieval maps |
-| [[HEADER_TEMPLATE]] | YAML header schema |
-| [[03_concept_indexes/]] | Concept indexes |
-| [[user_requests]] | Request log |
-| [[05_agent_reports/]] | Reports, checkpoints, evidence packets, verification notes |
+| File                        | Role                                                                  |                                                  |
+| --------------------------- | --------------------------------------------------------------------- | ------------------------------------------------ |
+| `AGENTS.md`                 | Orchestrator playbook — single routing file                           |                                                  |
+| [[STARTUP]]                 | Setup translation + indexing protocol (read by orchestrator)          |                                                  |
+| [[ZONE_CONFIGURATION]]      | Operating profile                                                     |                                                  |
+| [[SYSTEM_ARCHITECTURE_MAP]] | This file — diagrams                                                  |                                                  |
+| `.agents/skills/zone-startup/SKILL.md` | Zone initialization workflow                          |                                                  |
+| `.agents/skills/source-intake/SKILL.md` | Source file registration                              |                                                  |
+| `.agents/skills/report-writing/SKILL.md` | Report synthesis                                     |                                                  |
+| `.agents/skills/claim-verification/SKILL.md` | Claim verification                               |                                                  |
+| `.agents/skills/zone-cleanup/SKILL.md` | Hygiene audit and archival                            |                                                  |
+| `.agents/skills/orchestrator-dispatch/SKILL.md` | Prompt routing and skill injection         |                                                  |
+| [[dictionary]]              | Shared term vocabulary                                                |                                                  |
+| [[zone_index]]              | Master index                                                          |                                                  |
+| [[maps/]]                   | Central navigation layer with Obsidian wikilinks into raw files       |                                                  |
+| [[raw/]]                    | Active working corpus with raw text copies and source pointer records |                                                  |
+| [[HEADER_TEMPLATE]]         | YAML header schema                                                    |                                                  |
+| [[user_requests]]           | Request log                                                           |                                                  |
+| [[05_agent_reports/]]       | Reports, checkpoints, evidence packets, verification notes            |                                                  |
 
 ## Retired Model
 

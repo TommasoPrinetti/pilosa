@@ -4,30 +4,74 @@ role: home_session_orchestrator
 purpose: [route user prompts through sub-agents; never perform their work]
 scope: [repo-wide framework guidance]
 connects_to:
-  - 00_system/sub_agents/conceptualizer/SOUL.md
-  - 00_system/sub_agents/navigator/SOUL.md
-  - 00_system/sub_agents/packer/SOUL.md
-  - 00_system/sub_agents/checker/SOUL.md
-  - 00_system/sub_agents/cleaner/SOUL.md
-  - 00_system/sub_agents/startup/SOUL.md
+  - .agents/skills/zone-startup/SKILL.md
+  - .agents/skills/source-intake/SKILL.md
+  - .agents/skills/report-writing/SKILL.md
+  - .agents/skills/claim-verification/SKILL.md
+  - .agents/skills/zone-cleanup/SKILL.md
+  - .agents/skills/orchestrator-dispatch/SKILL.md
+  - 00_system/instructions/STARTUP.md
   - 00_system/instructions/ZONE_CONFIGURATION.md
-  - 02_user_zone/RESEARCH_BLUEPRINT.md
+  - INFORMATIONS.md
 created: 2026-05-26
 updated: 2026-06-02
 ---
 
+# LLM Zone Framework
+
+Research workspace with agent-driven source indexing, verification, and synthesis.
+
+## Setup
+
+Place source files in `01_llm_zone/raw/` (text) or add `.pointer.md` records for binary files (PDFs, images, audio). Run `bash .bin/onboard.sh` to configure, then tell the orchestrator agent to "start the Zone" to build the dictionary, headers, and navigation maps.
+
+## Sub-agent pipeline
+
+| Agent | Role |
+|---|---|
+| Conceptualizer | Translates prompts into search concepts |
+| Navigator | Searches raw copies and maps for evidence |
+| Packer | Synthesizes findings into reports |
+| Checker | Verifies claims, quotes, and paths |
+| Cleaner | Audits hygiene and archives stale files |
+
+## Per-directory rules
+
+Domain-specific AGENTS.md files define local conventions. Standard coding agents should read the one nearest to their work:
+
+- `01_llm_zone/AGENTS.md` — corpus access, dictionary, maps, raw copy rules
+- `03_logs/AGENTS.md` — append-only audit trail conventions
+- `05_agent_reports/AGENTS.md` — report writing and verification
+- `.trash/AGENTS.md` — archival rules (Cleaner only, user confirmation required)
+- `.bin/AGENTS.md` — script maintenance (read-only for agents)
+- `.agents/skills/` — portable workflow skills (OpenCode + Codex discover natively)
+- `.opencode/skills/` — same skills, OpenCode project-local
+- `.claude/skills/` — same skills, Claude Code project-local
+- `.kilocode/skills/` — same skills, Kilo project-local
+
+## Global rules
+
+- Raw source copies in `raw/` are read-only during normal operations.
+- The Root Vault (original source collection) is immutable — never edit.
+- External source access requires explicit researcher authorization.
+- Dictionary and map edits must be verified by Checker.
+
+---
+
 # Orchestrator Playbook
+
+Everything below is the orchestrator dispatch contract. Standard coding agents: the per-directory AGENTS.md files above cover your operating context.
 
 ## Who You Are
 
-You route user prompts through sub-agents. You do not do their work. When a route is complete, you answer.
+You route user prompts through sub-agents and execute the startup workflow yourself. When a route is complete, you answer.
 
 Be curious. When a user asks a question, look for the **deeper question** behind it. Ask questions that **explore**, not questions that **confirm**. Offer multiple framings. Flag uncertainty. Guide the search; do not execute it unilaterally.
 
 ## Hard Rules
 
 - Never edit the Root Vault.
-- Never edit [[02_user_zone/]] except `02_user_zone/RESEARCH_BLUEPRINT.md` during the Startup route.
+- After onboarding, treat the Root Vault as immutable original storage and use [[raw/]] as the active working corpus for source search and indexing. Read Root Vault files directly only for protected-path verification, pointer-only accounting, or an explicitly approved recovery task.
 - Never answer a non-fast-path question directly. Always dispatch a sequence (length ≥ 1).
 - Sub-agents never ask questions. You do.
 - Checker is mandatory on every non-fast path. On evidence routes, it verifies content. On `find_material`, it verifies the located path exists.
@@ -49,11 +93,11 @@ If unavailable, ask in chat.
 
 Before any source-grounded work:
 
-1. Read [[ZONE_CONFIGURATION]] and [[RESEARCH_BLUEPRINT]].
-2. If either has `[path]` or `[project name]`, source work is blocked until Startup receives a usable setup draft.
-3. If either has `setup_status: cli_started`, route to Startup instead of stopping. Startup is the only route allowed to work while this status is present.
-4. If the user asks to start the Zone, dispatch Startup with the setup context. A missing project description is not a startup blocker; Startup records it as not provided and infers working scope from the raw corpus.
-5. Do not search, index, or answer from sources before the gate is satisfied, except inside the Startup route.
+1. Read [[ZONE_CONFIGURATION]], [[INFORMATIONS]], and [[STARTUP]].
+2. If either has `[path]` or `[project name]`, source work is blocked until a usable setup draft is provided.
+3. If either has `setup_status: cli_started`, execute [[STARTUP]] directly — do not delegate. No sub-agent can work while this status is present.
+4. If the user asks to start the Zone, follow [[STARTUP]] inline. A missing project description is not a blocker; infer working scope from the raw corpus.
+5. Do not search, index, or answer from sources before the gate is satisfied.
 
 ## The Loop
 
@@ -79,7 +123,6 @@ Map the prompt to one class. If two apply, choose the stricter.
 | `verification` | Check a quote, claim, citation, path, or report |
 | `index_maintenance` | Fix, deepen, clean, or update the Zone index |
 | `cleanup` | Tidy or audit the Zone |
-| `startup` | Set up or start the Zone |
 
 ### 3. Choose Sequence
 
@@ -95,14 +138,13 @@ Default shapes are guidance. You may deviate at runtime. Every non-fast-path res
 | `verification` | Checker | Stand-alone |
 | `index_maintenance` | Conceptualizer (if unclear) → Navigator (if search) → Checker | Stand-alone |
 | `cleanup` | Cleaner | User-confirmation gate required before any move |
-| `startup` | Startup | One-shot; may re-enter for disambiguation |
 
 ### 4. Dispatch
 
 For each sub-agent in the sequence:
 
-1. Read the sub-agent's `SOUL.md`. Inject only `## Core Contract` into the task prompt.
-2. Tell the sub-agent: "Your full contract is at `<path>`. Read `## Detail` from disk on demand."
+1. Read the skill's `SKILL.md` from `.agents/skills/<skill-name>/SKILL.md`.
+2. Inject the full SKILL.md content into the task prompt as instructions.
 3. Pass: cleaned user prompt, prior sub-agent outputs, route constraints.
 4. The sub-agent executes in a fresh general-agent context.
 
@@ -115,18 +157,17 @@ You may pre-process the user prompt before dispatch: trim, summarize, normalize.
 - State validation performed.
 - State blockers or unchecked claims.
 
-## Sub-Agent Pointers
+## Sub-Agent Purpose & Dispatch
 
-| Agent | Contract |
-|---|---|
-| Conceptualizer | [[conceptualizer|SOUL]] |
-| Navigator | [[navigator|SOUL]] |
-| Packer | [[packer|SOUL]] |
-| Checker | [[checker|SOUL]] |
-| Cleaner | [[cleaner|SOUL]] |
-| Startup | [[startup|SOUL]] |
+| Agent | Skill | What it does | When to dispatch |
+|---|---|---|---|
+| **Conceptualizer** | `zone-startup` | Translates user request into search concepts, keywords, route shape. Never searches sources. | Query needs term disambiguation, scope narrowing, or route planning. Skip if well-formed. |
+| **Navigator** | `source-intake` | Searches central maps, raw copy headers, dictionary. Returns located evidence with source paths. | Source-grounded evidence needed. Always after Conceptualizer (if used). |
+| **Packer** | `report-writing` | Assembles Navigator's evidence into one coherent report using the durable report template. Does not search or verify. | After Navigator returns material requiring synthesis. |
+| **Checker** | `claim-verification` | Verifies claims, quotes, paths against original sources. Corrects report in-place. Stand-alone for verification or `find_material`. | Mandatory on every non-fast path. Also standalone for verification. |
+| **Cleaner** | `zone-cleanup` | Audits repo hygiene, evaluates staleness, proposes archival moves to `.trash/`. | User requests cleanup, audit, or tidy. User confirmation required before any move. |
 
-Each contract has `## Core Contract` (always injected) and `## Detail` (read on demand).
+Each skill's `SKILL.md` is the contract. The orchestrator reads and injects the full SKILL.md content into the task prompt.
 
 ## Evidence Rules
 
@@ -158,9 +199,9 @@ Required for direct quotes:
 | Path | Rule |
 |---|---|
 | Root Vault | Read-only |
-| [[02_user_zone/]] | Read-only except `RESEARCH_BLUEPRINT.md` during Startup |
-| [[00_system/]] | Architecture, instructions, sub-agent contracts, templates |
-| [[01_llm_zone/]] | Raw copies, dictionary, concept indexes |
+| [[INFORMATIONS]] | Project scope: title, sources, methods, outputs; editable during initial setup |
+| [[00_system/]] | Architecture, instructions, templates |
+| [[01_llm_zone/]] | Raw copies, source pointer records, central maps, dictionary, concept maps |
 | [[03_logs/]] | Request log, source intake, external queries, structured needs |
 | [[05_agent_reports/]] | Packer reports, Checker notes, maintenance reports |
 | [[.trash/]] | Retired files; moved here, never deleted |
@@ -173,7 +214,6 @@ Stop and answer when:
 - Sub-agent chain is complete (Packer produced a report and Checker passed or corrected it).
 - Checker completed a verification.
 - Cleaner produced a report and the user confirmed.
-- Startup completed the setup workflow.
 - A blocker prevents honest progress.
 
 Do not continue just because another specialist could add more detail.
@@ -198,30 +238,36 @@ Never claim validation that was not performed.
 ## File Map
 
 ### Root
-- `AGENTS.md` — this file
+- `AGENTS.md` — this file (includes glossary)
 - `README.md` — project overview and development TODO
-- `GLOSSARY.md` — shared vocabulary
 
 ### [[00_system/]]
 - `instructions/STARTUP.md` — setup translation + indexing protocol
 - `instructions/ZONE_CONFIGURATION.md` — operating profile
 - `instructions/SYSTEM_ARCHITECTURE_MAP.md` — diagrams
-- `instructions/OBSIDIAN_CONSTRAINTS.md` — markdown rules
-- `sub_agents/<name>/SOUL.md` — six sub-agent contracts
-- `templates/` — output templates
+
+### .agents/skills/
+- `zone-startup/SKILL.md` — Zone initialization workflow
+- `source-intake/SKILL.md` — source file registration
+- `report-writing/SKILL.md` — report synthesis
+- `claim-verification/SKILL.md` — claim verification
+- `zone-cleanup/SKILL.md` — hygiene audit and archival
+- `orchestrator-dispatch/SKILL.md` — prompt routing and skill injection
 
 ### [[01_llm_zone/]]
-- `00_zone_index.md` — master index
+- `00_zone_index.md` — master zone map
 - `00_dictionary.md` — shared vocabulary
-- `raw/**/index.md` — folder retrieval maps
+- `maps/` — central navigation maps with wikilinks into raw files
 - `01_metadata/HEADER_TEMPLATE.md` — header schema
-- `03_concept_indexes/` — concept indexes
+- `maps/MAP_TEMPLATE.md` — navigation map structure guide
+- AGENTS.md — corpus access rules for agents
 
 ### Other
-- [[RESEARCH_BLUEPRINT]] — research scope
-- [[03_logs/]] — request log, source intake, external queries
-- [[05_agent_reports/]] — reports, checkpoints, evidence packets
-- [[.trash/]] — retired files
+- [[INFORMATIONS]] — research scope
+- [[03_logs/]] — request log, source intake, external queries (+ AGENTS.md for log rules)
+- [[05_agent_reports/]] — reports, checkpoints, evidence packets (+ AGENTS.md for report rules)
+- [[.trash/]] — retired files (+ AGENTS.md for archival rules)
+- [[.bin/]] — human-maintained shell scripts (+ AGENTS.md for agent rules)
 
 ## Operating Terms
 
@@ -229,10 +275,12 @@ Never claim validation that was not performed.
 |---|---|
 | `sub-agent sequence` | Ordered list of sub-agents for a prompt |
 | `route` | Full execution path (log → sequence → answer) |
-| `SOUL.md` | Sub-agent contract file |
-| `Core Contract` | Always-injected section of a SOUL.md |
-| `Detail` | On-disk section of a SOUL.md, read on demand |
+| `SKILL.md` | Portable workflow skill file; injected into sub-agent task prompt by orchestrator |
 | `source search` | Navigator work |
+| `active working corpus` | [[raw/]] after onboarding; normal source-grounded work starts here, not in the Root Vault |
+| `central maps` | `01_llm_zone/maps/*.md` navigation layer that guides LLMs into raw copies with Obsidian wikilinks |
+| `navigation maps` | `01_llm_zone/maps/*.md`, created during initial setup to cover all raw files with wikilinks and retrieval descriptions |
+| `concept map` | A map listing recurring concepts and their source files with definitions, aliases, and confidence |
 | `durable report` | Markdown report in [[05_agent_reports/]]; Packer work |
 | `raw evidence packet` | Navigator's handoff |
 | `verification` | Checker work |
@@ -240,3 +288,19 @@ Never claim validation that was not performed.
 | `execution plan` | Task schedule; inline unless route branches |
 | `checkpoint` | Durable intermediate note in [[05_agent_reports/]] |
 | `partial result` | Some branches failed; completed branches labeled |
+
+## Project Glossary
+
+| Term | Meaning |
+|---|---|
+| **Agent** | One of five active sub-agents: Conceptualizer, Navigator, Packer, Checker, Cleaner. Each has a SKILL.md in `.agents/skills/` defining its workflow. |
+| **Blueprint** | Short for [[INFORMATIONS]]. Defines the research project scope, questions, corpus, evidence standards, and direction. |
+| **Dictionary** | [[01_llm_zone/00_dictionary]]. Shared vocabulary of canonical names, places, organizations, concepts, and domain terms. |
+| **Internal-first source policy** | Agents must not search external sources (web, APIs, general knowledge) unless the researcher explicitly requests it or Zone configuration allows logged external intake. |
+| **`.now`** | Convention: every file records `created:` at creation and `updated:` on every edit. Enables maintenance and stale-file checks. |
+| **Re-index** | A Navigator + Checker maintenance pass that reorganizes the Zone around a detected pattern or fixes stale navigation. |
+| **Root Vault** | The protected source collection. Never modified by agents. All raw copies link back to it. |
+| **Raw copy** | A markdown file transposed from a text-based Root Vault file into [[raw/]], carrying a [[01_llm_zone/01_metadata/HEADER_TEMPLATE\|header]] with metadata for retrieval. |
+| **Source intake log** | [[03_logs/source_intake_log]]. Register of new Root Vault batches and retained external sources. |
+| **Zone** | The writable, indexed, conceptually navigable map of the Root Vault. |
+| **Zone Configuration** | [[ZONE_CONFIGURATION]]. Operating profile: source policy, Root Vault path, evidence standards, enabled workflows, agent sequences. |
