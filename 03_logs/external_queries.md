@@ -9,7 +9,7 @@ connects_to:
   - 00_system/instructions/ZONE_CONFIGURATION.md
   - 03_logs/source_intake_log.md
 created: 2026-05-26
-updated: 2026-05-27
+updated: 2026-06-03
 ---
 
 # External Queries Log
@@ -17,4 +17,4 @@ updated: 2026-05-27
 *Log of every external source request the researcher explicitly authorized.*
 
 | Date | Query | Source | Reason | Status |
-|---|---|---|---|---|
+|---|---|---|---|---|---|

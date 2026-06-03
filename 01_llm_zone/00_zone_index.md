@@ -6,12 +6,10 @@ scope: [all of 01_llm_zone]
 connects_to:
   - 00_dictionary.md
   - 01_metadata/HEADER_TEMPLATE.md
-  - 03_concept_indexes/
-  - 03_logs/research_tendencies/RESEARCH_NEED_AGGREGATOR_TEMPLATE.md
 evidence_type: processed
 evidence_level: L1
-created: 2026-05-26
-updated: 2026-05-28
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
 ---
 
 # LLM Zone — Master Index
@@ -22,16 +20,31 @@ updated: 2026-05-28
 01_llm_zone/
   00_zone_index.md              This file
   00_dictionary.md               Shared term vocabulary for coherent headers
-  raw/                           Markdown raw copies transposed from text-based Root Vault files (folder `index.md` retrieval map in each subfolder)
-  01_metadata/                   Shared header guidance
-  03_concept_indexes/            Thematic concept indexes
+  maps/                          Central navigation maps with Obsidian wikilinks into raw/
+   raw/                           Active working corpus: text-like raw copies and source pointer records
+   01_metadata/                   Shared header guidance
+   maps/MAP_TEMPLATE.md           Structure guide for navigation maps
 ```
+
+## Central Maps
+
+Startup creates navigation maps under `01_llm_zone/maps/` to cover all files in [[raw/]]. The set of maps is determined by the corpus; see [[maps/MAP_TEMPLATE]] for structure guidance.
 
 ## Source Coverage
 
 | Source type | Count | Last updated |
 |---|---|---|
 | — | 0 | — |
+
+## Pointer Record Coverage
+
+| Media type | Pointer records | Processing status |
+|---|---:|---|
+| image | 0 | pointer_only_pending |
+| video | 0 | pointer_only_pending |
+| audio | 0 | pointer_only_pending |
+| pdf | 0 | pointer_only_pending |
+| unknown | 0 | pointer_only_pending |
 
 ## Dictionary Status
 
@@ -43,15 +56,13 @@ updated: 2026-05-28
 | Canonical concepts | 0 | — |
 | Domain terms | 0 | — |
 
-## Active Concept Indexes
+## Active Concept Maps
 
-| Index name | Tags | Coverage | Last updated |
-|---|---|---|---|
-| — | — | — | — |
+Concept maps are stored in [[maps/]] alongside other navigation maps.
 
-## Research Tendencies
-
-Startup generates `03_logs/research_tendencies/RESEARCH_NEED_AGGREGATOR.md` from its template.
+| Concept | Raw copies | Tags | Map quality | Last updated |
+|---|---|---|---|---|
+| — | — | — | — | — |
 
 ## Non-Text Files in Root Vault
 

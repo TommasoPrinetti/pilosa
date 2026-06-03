@@ -28,9 +28,7 @@ required_files=(
   "AGENTS.md"
   "00_system/instructions/ZONE_CONFIGURATION.md"
   "00_system/instructions/STARTUP.md"
-  "00_system/templates/STARTUP_REPORT_TEMPLATE.md"
-  "02_user_zone/RESEARCH_BLUEPRINT.md"
-  "03_logs/research_tendencies/RESEARCH_NEED_AGGREGATOR_TEMPLATE.md"
+  "INFORMATIONS.md"
 )
 
 for file in "${required_files[@]}"; do
@@ -38,7 +36,7 @@ for file in "${required_files[@]}"; do
 done
 
 config="$(read_file "00_system/instructions/ZONE_CONFIGURATION.md")"
-blueprint="$(read_file "02_user_zone/RESEARCH_BLUEPRINT.md")"
+blueprint="$(read_file "INFORMATIONS.md")"
 startup_text="${config}
 ${blueprint}"
 
@@ -84,6 +82,167 @@ fi
 # ── check external policy ───────────────────────────────────────────────────
 if ! echo "$config" | grep -qE "external_sources_allowed: *(yes|no)"; then
   failures+=("external_sources_allowed is missing or invalid.")
+fi
+
+# ── validate generated raw-zone and map frontmatter ─────────────────────────
+raw_dir="$ROOT/01_llm_zone/raw"
+maps_dir="$ROOT/01_llm_zone/maps"
+
+frontmatter_value() {
+  local file="$1" key="$2"
+  awk '
+    /^---$/ { marks++; next }
+    marks == 1 { print }
+    marks == 2 { exit }
+  ' "$file" | sed -n "s/^${key}: *//p" | head -1 | sed 's/^"//; s/"$//'
+}
+
+has_frontmatter_key() {
+  local file="$1" key="$2"
+  awk '
+    /^---$/ { marks++; next }
+    marks == 1 { print }
+    marks == 2 { exit }
+  ' "$file" | grep -qE "^${key}:"
+}
+
+validate_generated_provenance() {
+  local file="$1"
+  for key in generated_by generated_at processing_status; do
+    if ! has_frontmatter_key "$file" "$key"; then
+      failures+=("Missing $key in ${file#$ROOT/}")
+    fi
+  done
+}
+
+validate_source_path() {
+  local file="$1"
+  local source
+  source="$(frontmatter_value "$file" "source")"
+  if [[ -z "$source" ]]; then
+    failures+=("Missing source in ${file#$ROOT/}")
+    return
+  fi
+  if [[ ! -e "$source" && ! -e "$ROOT/$source" ]]; then
+    failures+=("Source path does not exist in ${file#$ROOT/}: $source")
+  fi
+}
+
+validate_array_field() {
+  local file="$1" key="$2"
+  local value
+  value="$(frontmatter_value "$file" "$key")"
+  [[ -z "$value" ]] && return
+  if [[ "$value" != \[* ]]; then
+    failures+=("Field $key must be a YAML array in ${file#$ROOT/}")
+  fi
+}
+
+resolve_wikilinks() {
+  local file="$1"
+  local link target candidate resolved
+
+  while IFS= read -r link; do
+    target="${link#\[\[}"
+    target="${target%\]\]}"
+    target="${target%%|*}"
+    target="${target%%#*}"
+    [[ -z "$target" ]] && continue
+    [[ "$target" == http:* || "$target" == https:* ]] && continue
+
+    resolved="no"
+    for candidate in \
+      "$ROOT/01_llm_zone/${target}.md" \
+      "$ROOT/01_llm_zone/${target}" \
+      "$maps_dir/${target}.md" \
+      "$maps_dir/${target}" \
+      "$ROOT/${target}.md" \
+      "$ROOT/${target}"; do
+      if [[ -f "$candidate" ]]; then
+        resolved="yes"
+        break
+      fi
+    done
+
+    if [[ "$resolved" != "yes" ]]; then
+      failures+=("Broken wikilink in ${file#$ROOT/}: [[$target]]")
+    fi
+  done < <(grep -o '\[\[[^]]\+\]\]' "$file" 2>/dev/null || true)
+}
+
+if [[ -d "$raw_dir" ]]; then
+  while IFS= read -r -d '' file; do
+    name="$(basename "$file")"
+    [[ "$name" == ".gitkeep" ]] && continue
+
+    first_line="$(sed -n '1p' "$file")"
+    if [[ "$first_line" != "---" ]]; then
+      failures+=("Missing YAML frontmatter in ${file#$ROOT/}")
+      continue
+    fi
+
+    file_type="$(frontmatter_value "$file" "type")"
+    case "$file_type" in
+      raw_copy)
+        validate_source_path "$file"
+        validate_generated_provenance "$file"
+        for key in people places organizations topics keywords concepts explicit_source_terms inferred_concepts canonical_aliases uncertain_terms machine_artifacts metadata_uncertainty related_sources; do
+          validate_array_field "$file" "$key"
+        done
+        ;;
+      source_pointer)
+        validate_source_path "$file"
+        validate_generated_provenance "$file"
+        for key in media_type extension size_bytes; do
+          if ! has_frontmatter_key "$file" "$key"; then
+            failures+=("Missing $key in ${file#$ROOT/}")
+          fi
+        done
+        ;;
+      raw_folder_index)
+        warnings+=("Legacy raw folder index found; central maps are authoritative: ${file#$ROOT/}")
+        ;;
+      "")
+        failures+=("Missing type in ${file#$ROOT/}")
+        ;;
+      *)
+        warnings+=("Unhandled raw-zone type in ${file#$ROOT/}: $file_type")
+        ;;
+    esac
+  done < <(find "$raw_dir" -type f -name "*.md" -print0 2>/dev/null)
+fi
+
+if [[ "$startup_text" == *"setup_status: zone_started"* ]]; then
+  if [[ ! -d "$maps_dir" ]]; then
+    failures+=("Missing central maps directory: 01_llm_zone/maps")
+  else
+    while IFS= read -r -d '' map_file; do
+      basename="${map_file#$maps_dir/}"
+      [[ "$basename" == "MAP_TEMPLATE.md" || "$basename" == ".gitkeep" ]] && continue
+
+      first_line="$(sed -n '1p' "$map_file")"
+      if [[ "$first_line" != "---" ]]; then
+        failures+=("Missing YAML frontmatter in ${map_file#$ROOT/}")
+        continue
+      fi
+
+      map_type="$(frontmatter_value "$map_file" "type")"
+      if [[ "$map_type" != "navigation_map" ]]; then
+        failures+=("Map type must be navigation_map in ${map_file#$ROOT/}")
+      fi
+      validate_generated_provenance "$map_file"
+      for key in role map_quality description_depth wikilink_policy; do
+        if ! has_frontmatter_key "$map_file" "$key"; then
+          failures+=("Missing $key in ${map_file#$ROOT/}")
+        fi
+      done
+      if ! grep -q '\[\[' "$map_file"; then
+        failures+=("Navigation map has no Obsidian wikilinks: ${map_file#$ROOT/}")
+      else
+        resolve_wikilinks "$map_file"
+      fi
+    done < <(find "$maps_dir" -maxdepth 1 -type f -name "*.md" -print0 2>/dev/null)
+  fi
 fi
 
 # ── output ───────────────────────────────────────────────────────────────────
