@@ -318,6 +318,7 @@ normalize_path_input() {
       value="${value:1:${#value}-2}"
     fi
   fi
+  value="${value//\\ / }"
   echo "$value"
 }
 
